@@ -14,4 +14,5 @@ import 'dotenv/config'
 export const env = {
     MONGODB_URI : process.env.MONGODB_URI,
     DATABASE_NAME: process.env.DATABASE_NAME,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
 }

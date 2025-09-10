@@ -142,7 +142,11 @@ const searchBooks = async (req, res) => {
   try {
     const { query } = req.body;
     if (!query) {
-      return sendError(res, "Search query is required", HTTP_STATUS.BAD_REQUEST);
+      return sendError(
+        res,
+        "Search query is required",
+        HTTP_STATUS.BAD_REQUEST
+      );
     }
 
     // Simplify Query
@@ -156,13 +160,23 @@ const searchBooks = async (req, res) => {
     const books = await Book.aggregate([
       {
         $vectorSearch: {
-          index: "default",   // tên index bạn đã tạo
-          path: "summaryvector",        // field chứa embedding
-          queryVector: queryEmbedding,  // vector tìm kiếm
-          numCandidates: 100,           // số candidate lấy trước khi filter
-          limit: 2                     // số kết quả cuối cùng trả về
-        }
-      }
+          index: "default",
+          path: "summaryvector",
+          queryVector: queryEmbedding,
+          numCandidates: 100,
+          limit: 10,
+        },
+      },
+      {
+        $addFields: {
+          score: { $meta: "vectorSearchScore" },
+        },
+      },
+      // {
+      //   $match: {
+      //     score: { $gte: 0.75 }, // threshold
+      //   },
+      // },
     ]);
 
     // 3. Chuẩn hóa response
@@ -174,7 +188,6 @@ const searchBooks = async (req, res) => {
     });
   }
 };
-
 
 export const bookController = {
   createBook,

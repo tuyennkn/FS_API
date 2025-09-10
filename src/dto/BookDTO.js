@@ -27,7 +27,8 @@ export const BookDTO = {
       imageUrl: book.imageUrl,
       isDisable: book.isDisable,
       createdAt: book.createdAt,
-      updatedAt: book.updatedAt
+      updatedAt: book.updatedAt,
+      score: book.score ?? 0 // For search results
     }
 
     // Luôn trả về category_id với thông tin đầy đủ nếu có

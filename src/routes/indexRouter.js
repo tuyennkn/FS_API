@@ -5,6 +5,7 @@ import categoryRouter from './category/categoryRouter.js'
 import bookRouter from './book/bookRouter.js'
 import commentRouter from './comment/commentRouter.js'
 import uploadRouter from './upload/uploadRouter.js'
+// import importRouters from './importRouters.js'
 import { generateEmbedding } from '~/services/AI/embedding.service.js'
 
 
@@ -14,6 +15,7 @@ Router.use('/category', categoryRouter)
 Router.use('/book', bookRouter)
 Router.use('/comment', commentRouter)
 Router.use('/upload', uploadRouter)
+// Router.use('/import', importRouters)
 
 // Kiểm tra status API
 Router.get('/status', (req, res) => {

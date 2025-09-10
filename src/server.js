@@ -30,20 +30,6 @@ const START_SERVER = () => {
   
   app.use(express.static('public'))
 
-  // Test embedding endpoint
-  app.use('/embed', async (req, res) => {
-    
-    // call method from embedding service
-    generateBatchEmbeddings(["Hello, world!", "Another text to embed"])
-    .then(embeddings => {
-        res.status(StatusCodes.OK).json({message: 'Batch embeddings generated', code: 200, embeddings})
-    })
-    .catch(error => {
-        res.status(404).json({message: 'Error generating embedding', code: 404, error: error.message})
-    })
-  })
-
-
   app.listen(port, hostname, () => {
     console.log(`Hello ${port} Dev, I am running at ${ hostname }:${ port }`)
   })

@@ -1,0 +1,44 @@
+@baseUrl = http://localhost:8080/router
+@accessToken = your-admin-access-token-here
+
+### Import Books from CSV (Simple JSON format)
+POST {{baseUrl}}/book/import-csv
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "books": [
+    {
+      "title": "Goat Brothers",
+      "author": "Colton, Larry",
+      "summary": "A story about brotherhood and perseverance",
+      "category": "History, General",
+      "publisher": "Doubleday",
+      "price": "8.79",
+      "publishDate": "1993-01-01"
+    },
+    {
+      "title": "The Missing Person",
+      "author": "Grumbach, Doris",
+      "summary": "A compelling fiction about identity and loss",
+      "category": "Fiction, General", 
+      "publisher": "Putnam Pub Group",
+      "price": "4.99",
+      "publishDate": "1981-03-01"
+    },
+    {
+      "title": "Sample Programming Book",
+      "author": "Jane Doe",
+      "summary": "This is a comprehensive guide to modern programming techniques",
+      "category": "Programming, Technology",
+      "publisher": "Tech Publisher",
+      "price": "24.99",
+      "publishDate": "2024-06-01"
+    }
+  ]
+}
+
+###
+
+### Get All Books (to see imported books)
+GET {{baseUrl}}/book/all

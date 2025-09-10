@@ -154,13 +154,13 @@ const searchBooks = async (req, res) => {
     console.log("Simplified Query:", simplifiedQuery);
 
     // 1. Gọi embedding service để sinh vector từ query
-    const queryEmbedding = await generateEmbedding(simplifiedQuery);
+    // const queryEmbedding = await generateEmbedding(simplifiedQuery);
 
     // 2. Tìm sách bằng Atlas Vector Search
     const books = await Book.aggregate([
       {
         $vectorSearch: {
-          index: "default",
+          index: "1024_Dim",
           path: "summaryvector",
           queryVector: queryEmbedding,
           numCandidates: 100,
@@ -172,11 +172,11 @@ const searchBooks = async (req, res) => {
           score: { $meta: "vectorSearchScore" },
         },
       },
-      // {
-      //   $match: {
-      //     score: { $gte: 0.75 }, // threshold
-      //   },
-      // },
+      {
+        $match: {
+          score: { $gte: 0.75 }, // threshold
+        },
+      },
     ]);
 
     // 3. Chuẩn hóa response
@@ -189,6 +189,80 @@ const searchBooks = async (req, res) => {
   }
 };
 
+// Import books from CSV
+const importBooksFromCSV = async (req, res) => {
+  try {
+    // Parse CSV data from request body
+    const { books } = req.body;
+    
+    if (!books || !Array.isArray(books) || books.length === 0) {
+      return sendError(res, 'No books data provided', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    const importedBooks = [];
+    const errors = [];
+
+    for (let i = 0; i < books.length; i++) {
+      try {
+        const bookData = books[i];
+        
+        // Validate required fields
+        if (!bookData.title || !bookData.price) {
+          errors.push(`Row ${i + 1}: Title and price are required`);
+          continue;
+        }
+
+        // Create book object
+        const book = new Book({
+          title: bookData.title,
+          author: bookData.author || '',
+          summary: bookData.summary || bookData.description || '',
+          publisher: bookData.publisher || '',
+          price: parseFloat(bookData.price) || 0,
+          genre: bookData.genre || bookData.category || '',
+          publishDate: bookData.publishDate ? new Date(bookData.publishDate) : null,
+          quantity: parseInt(bookData.quantity) || 1,
+          rating: 0,
+          sold: 0,
+          isDisable: false
+        });
+
+        // Generate embedding if title and summary exist
+        if (book.title && book.summary) {
+          try {
+            const embedding = await generateEmbedding(`${book.title} ${book.summary}`);
+            book.summaryvector = embedding;
+          } catch (embeddingError) {
+            console.log(`Warning: Could not generate embedding for book ${book.title}`);
+          }
+        }
+
+        await book.save();
+        importedBooks.push(book);
+
+      } catch (error) {
+        errors.push(`Row ${i + 1}: ${error.message}`);
+      }
+    }
+
+    return res.status(HTTP_STATUS.CREATED).json({
+      success: true,
+      message: `Successfully imported ${importedBooks.length} books`,
+      data: {
+        imported: importedBooks.length,
+        total: books.length,
+        errors: errors,
+        books: importedBooks
+      },
+      statusCode: HTTP_STATUS.CREATED
+    });
+
+  } catch (error) {
+    console.error('Import error:', error);
+    return sendError(res, 'Error importing books', HTTP_STATUS.INTERNAL_SERVER_ERROR);
+  }
+};
+
 export const bookController = {
   createBook,
   updateBook,
@@ -197,4 +271,5 @@ export const bookController = {
   getBookById,
   summaryvectorBook,
   searchBooks,
+  importBooksFromCSV,
 };

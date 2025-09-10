@@ -21,4 +21,7 @@ Router.get('/getBook/:id', bookController.getBookById)
 Router.put('/summaryvector', bookController.summaryvectorBook)
 Router.post('/search', bookController.searchBooks)
 
+// Import CSV route
+Router.post('/import-csv', authenticateToken, checkRole('admin'), bookController.importBooksFromCSV)
+
 export default Router

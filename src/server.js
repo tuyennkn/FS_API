@@ -12,6 +12,7 @@ import exitHook from 'async-exit-hook'
 import cors from 'cors'
 import mongoose from 'mongoose'
 import indexRouter from './routes/indexRouter.js'
+import { generateEmbedding, generateBatchEmbeddings } from './services/AI/embedding.service.js'
 
 
 const START_SERVER = () => {
@@ -28,6 +29,19 @@ const START_SERVER = () => {
   app.use('/router', indexRouter)
   
   app.use(express.static('public'))
+
+  // Test embedding endpoint
+  app.use('/embed', async (req, res) => {
+    
+    // call method from embedding service
+    generateBatchEmbeddings(["Hello, world!", "Another text to embed"])
+    .then(embeddings => {
+        res.status(StatusCodes.OK).json({message: 'Batch embeddings generated', code: 200, embeddings})
+    })
+    .catch(error => {
+        res.status(404).json({message: 'Error generating embedding', code: 404, error: error.message})
+    })
+  })
 
 
   app.listen(port, hostname, () => {

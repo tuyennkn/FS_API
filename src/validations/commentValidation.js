@@ -1,4 +1,5 @@
 import Joi from 'joi'
+import { sendValidationError } from '../utils/responseHelper.js'
 
 const createComment = async (req, res, next) => {
     const Schema = Joi.object({
@@ -15,11 +16,12 @@ const createComment = async (req, res, next) => {
         await Schema.validateAsync(req.body, { abortEarly: false })
         next()
     } catch (err) {
-        const errors = err.details.map(e => e.message)
-        return res.status(400).json({
-            message: 'Validation error them comment that bai',
-            errors
-        })
+        const errors = err.details.map(detail => ({
+            field: detail.path.join('.'),
+            message: detail.message,
+            value: detail.context?.value
+        }))
+        return sendValidationError(res, errors)
     }
 }
 
@@ -36,11 +38,12 @@ const updateComment = async (req, res, next) => {
         await Schema.validateAsync(req.body, { abortEarly: false })
         next()
     } catch (err) {
-        const errors = err.details.map(e => e.message)
-        return res.status(400).json({
-            message: 'Validation error cap nhat comment that bai',
-            errors
-        })
+        const errors = err.details.map(detail => ({
+            field: detail.path.join('.'),
+            message: detail.message,
+            value: detail.context?.value
+        }))
+        return sendValidationError(res, errors)
     }
 
 }

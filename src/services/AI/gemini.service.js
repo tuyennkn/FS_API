@@ -43,3 +43,16 @@ export async function moderateImage(base64Image) {
   if (output === 'SAFE') return true
   if (output === 'UNSAFE') return false
 }
+
+// Hàm biến query phức tạp thành câu truy vấn đơn giản
+export async function simplifyQuery(query) {
+  const prompt = `
+  Bạn là trợ lý tìm kiếm sách.
+  Biến câu truy vấn phức tạp sau thành câu truy vấn đơn giản, ngắn gọn, dễ hiểu.
+  Chỉ trả về câu truy vấn, không giải thích gì thêm.
+  Câu truy vấn: "${query}"
+  `
+  const result = await model.generateContent(prompt);
+  const output = result.response.text()
+  return output
+} 

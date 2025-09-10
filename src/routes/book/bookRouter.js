@@ -13,11 +13,12 @@ Router.get('/status', (req, res) => {
 })
 
 // Các route chính
-Router.post('/create', authenticateToken, checkRole('admin') ,bookValidation.createBook, bookController.createBook)
+Router.post('/create', authenticateToken, checkRole('admin') , bookValidation.createBook, bookController.createBook)
 Router.put('/update', authenticateToken, checkRole('admin'), bookValidation.updateBook, bookController.updateBook)
-Router.put('/toggle-disable', authenticateToken, checkRole('admin'), bookController.toggleDisbaleBook)
+Router.put('/toggle-disable', authenticateToken, checkRole('admin'), bookController.toggleDisableBook)
 Router.get('/all', bookController.getAllBook)
 Router.get('/getBook/:id', bookController.getBookById)
 Router.put('/summaryvector', bookController.summaryvectorBook)
+Router.post('/search', bookController.searchBooks)
 
 export default Router

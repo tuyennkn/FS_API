@@ -1,20 +1,29 @@
 import Category from '~/models/Category'
+import { 
+  sendSuccess, 
+  sendError, 
+  sendCreated,
+  sendNotFound,
+  sendConflict 
+} from '../utils/responseHelper.js'
+import { CategoryDTO } from '../dto/index.js'
+import { SUCCESS_MESSAGES, ERROR_MESSAGES } from '../utils/constants.js'
 
 const createCategory = async (req, res, next) => {
     try {
         const { name, description } = req.body
         const exists = await Category.findOne({ name })
         if (exists) {
-            return res.status(400).json({ message: 'Category name already exists' })
+            return sendConflict(res, 'Tên danh mục đã tồn tại')
         }
         const category = new Category({ name, description })
         await category.save()
 
-        res.status(201).json({ message: 'Category created successfully', category })
+        const responseData = CategoryDTO.toResponse(category)
+        return sendCreated(res, responseData, SUCCESS_MESSAGES.CATEGORY_CREATED)
     } catch (err) {
         next(err)
     }
-
 }
 
 const updateCategory = async (req, res, next) => {
@@ -28,9 +37,10 @@ const updateCategory = async (req, res, next) => {
             { new: true, runValidators: true }
         )
         if (!category) {
-            return res.status(404).json({ message: 'Category not found' })
+            return sendNotFound(res, ERROR_MESSAGES.CATEGORY_NOT_FOUND)
         }
-        res.json({ message: 'Category updated successfully', category })
+        const responseData = CategoryDTO.toResponse(category)
+        return sendSuccess(res, responseData, SUCCESS_MESSAGES.CATEGORY_UPDATED)
     } catch (err) {
         next(err)
     }
@@ -39,7 +49,8 @@ const updateCategory = async (req, res, next) => {
 const listCategories = async (req, res, next) => {
     try {
         const categories = await Category.find()
-        res.json({ categories })
+        const responseData = CategoryDTO.toResponseList(categories)
+        return sendSuccess(res, responseData, SUCCESS_MESSAGES.CATEGORY_RETRIEVED)
     } catch (err) {
         next(err)
     }
@@ -50,9 +61,10 @@ const getCategory = async (req, res, next) => {
         const { id } = req.body
         const category = await Category.findById(id)        
         if (!category) {
-            return res.status(404).json({ message: 'Category not found' })
+            return sendNotFound(res, ERROR_MESSAGES.CATEGORY_NOT_FOUND)
         }
-        res.json({ category })
+        const responseData = CategoryDTO.toResponse(category)
+        return sendSuccess(res, responseData, SUCCESS_MESSAGES.CATEGORY_RETRIEVED)
     } catch (err) {
         next(err)
     }
@@ -60,13 +72,16 @@ const getCategory = async (req, res, next) => {
 
 const toggleDisbaleCategory = async (req, res) => {
      try {
-    const { id, isDisable } = req.body
-    const category = await Category.findByIdAndUpdate(id, { isDisable }, { new: true })
-    if (!category) return res.status(404).json({ message: 'Không tìm thấy The loai do' })
-    res.json({ message: 'Cập nhật trạng thái isDisable thành công', data: category })
-  } catch (error) {
-    res.status(500).json({ message: 'Lỗi khi cập nhật isDisable', error: error.message })
-  }
+        const { id, isDisable } = req.body
+        const category = await Category.findByIdAndUpdate(id, { isDisable }, { new: true })
+        if (!category) {
+            return sendNotFound(res, ERROR_MESSAGES.CATEGORY_NOT_FOUND)
+        }
+        const responseData = CategoryDTO.toResponse(category)
+        return sendSuccess(res, responseData, SUCCESS_MESSAGES.CATEGORY_UPDATED)
+    } catch (error) {
+        return sendError(res, ERROR_MESSAGES.INTERNAL_ERROR, 500, { message: error.message })
+    }
 }
 
 export const categoryController = {

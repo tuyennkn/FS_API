@@ -1,0 +1,9 @@
+@baseUrl = http://localhost:8080/router
+
+### Search 
+POST {{baseUrl}}/book/search
+Content-Type: application/json
+
+{
+    "query": "Tư vấn cho tôi các thể loại sách thiên hướng đen tối"
+}

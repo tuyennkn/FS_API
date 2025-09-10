@@ -1,0 +1,67 @@
+@baseUrl = http://localhost:8080/router
+@categoryUrl = {{baseUrl}}/category
+
+# Sample tokens for testing
+@userToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YmRjMTg5YzIwNTZkZmFhMDliOTQxYiIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzU3MjY2MzEzLCJleHAiOjE3NTcyNjcyMTN9.93OflLvcG6eI0nGglAbSZ6oVQcSowEdRIHvNbdAppjQ
+@adminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YmRjMTg5YzIwNTZkZmFhMDliOTQxYiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1NzMxMzAxNCwiZXhwIjoxNzU3MzEzOTE0fQ.OvYxDw4qkuSDv2jBTguIHcH3WPBHRxuCEy5xFmFgvno
+
+# Sample category IDs for testing
+@categoryId = 68bdc44cc2056dfaa09b9428
+@categoryId2 = 68be782f900d35401a2fd3dc
+
+###
+# Category Routes
+###
+
+# Create new category (Admin only)
+POST {{categoryUrl}}/createCategory
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "name": "trinh tham",
+    "description": "the loai ve truy lung vet tich"
+}
+
+###
+
+# Get all categories
+GET {{categoryUrl}}/allCategories
+Authorization: Bearer {{adminToken}}
+
+###
+
+# Get category by ID
+GET {{categoryUrl}}/getCategory
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "id": "{{categoryId}}"
+}
+
+###
+
+# Update category
+PUT {{categoryUrl}}/updateCategory
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "id": "{{categoryId}}",
+    "name": "Tinh Cam",
+    "description": "The loai nghieng ve cam xuc cua con nguoi",
+    "isDisable": "true"
+}
+
+###
+
+# Toggle category disable status
+PUT {{categoryUrl}}/toggle-disable
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "id": "{{categoryId2}}",
+    "isDisable": true
+}

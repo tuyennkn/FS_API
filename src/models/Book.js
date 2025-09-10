@@ -8,9 +8,10 @@ const bookSchema = new mongoose.Schema({
   price: { type: Number, required: true },
   rating: { type: Number, default: 0 },
   category_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
-  summaryvector: { type: String },
+  summaryvector: { type: [Number] }, // [] Embedding vector
   quantity: { type: Number, default: 0 },
   sold: { type: Number, default: 0 },
+  imageUrl: { type: String },
   isDisable: { type: Boolean, default: false }
 }, { timestamps: true })
 

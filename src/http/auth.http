@@ -1,0 +1,39 @@
+@baseUrl = http://localhost:8080/router
+@authUrl = {{baseUrl}}/auth
+
+# Sample tokens for testing
+@userToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YmRjMTg5YzIwNTZkZmFhMDliOTQxYiIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzU3MjY2MzEzLCJleHAiOjE3NTcyNjcyMTN9.93OflLvcG6eI0nGglAbSZ6oVQcSowEdRIHvNbdAppjQ
+@adminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YmRjMTg5YzIwNTZkZmFhMDliOTQxYiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1NzMxMzAxNCwiZXhwIjoxNzU3MzEzOTE0fQ.OvYxDw4qkuSDv2jBTguIHcH3WPBHRxuCEy5xFmFgvno
+
+###
+# Authentication Routes
+###
+
+# Login
+POST {{authUrl}}/login
+Content-Type: application/json
+
+{
+    "username": "heoconhehe",
+    "password": "123456"
+}
+
+###
+
+# Register new user
+POST {{authUrl}}/register
+Content-Type: application/json
+Authorization: Bearer {{userToken}}
+
+{
+    "username": "heoconhehe",
+    "fullname": "Nguyen Kim Ngoc Tuyeh",
+    "email": "heconh2h2@gmail.com",
+    "password": "123456",
+    "phone": "0123456989",
+    "gender": "male",
+    "birthday": "2025-09-02",
+    "avatar": "https://yt3.ggpht.com/yti/ANjgQV8aHPprI669d4VewBxP8wRLu_l79wdOsycNrupXa5u-jpo=s108-c-k-c0x00ffffff-no-rj",
+    "persona": "dddd",
+    "address": "Binh Duong"
+}

@@ -1,0 +1,78 @@
+@baseUrl = http://localhost:8080/router
+@bookUrl = {{baseUrl}}/book
+
+# Sample tokens for testing
+@userToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YmRjMTg5YzIwNTZkZmFhMDliOTQxYiIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzU3MjY2MzEzLCJleHAiOjE3NTcyNjcyMTN9.93OflLvcG6eI0nGglAbSZ6oVQcSowEdRIHvNbdAppjQ
+@adminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YmRjMTg5YzIwNTZkZmFhMDliOTQxYiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1NzMxMzAxNCwiZXhwIjoxNzU3MzEzOTE0fQ.OvYxDw4qkuSDv2jBTguIHcH3WPBHRxuCEy5xFmFgvno
+
+# Sample IDs for testing
+@bookId = 68be6f594a8baf2b62cbb93a
+@categoryId = 68be782f900d35401a2fd3dc
+
+###
+# Book Routes
+###
+
+# Create new book (Admin only)
+POST {{bookUrl}}/create
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "title": "Phap y co",
+    "author": "AAAAAA",
+    "summary": "Nhung vu an phan y",
+    "publisher": "NXB Phuong Nam",
+    "price": 250000,
+    "rating": 5,
+    "category_id": "{{categoryId}}",
+    "summaryvector": "tu thi. kham  nghiem",
+    "quantity": 50,
+    "sold": 20
+}
+
+###
+
+# Get all books
+GET {{bookUrl}}/all
+
+###
+
+# Get book by ID
+GET {{bookUrl}}/getBook/{{bookId}}
+
+###
+
+# Update book (Admin only)
+PUT {{bookUrl}}/update
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "id": "{{bookId}}",
+    "title": "sach it nang cao"
+}
+
+###
+
+# Toggle book disable status (Admin only)
+PUT {{bookUrl}}/toggle-disable
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "id": "{{bookId}}",
+    "isDisable": true
+}
+
+###
+
+# Update book summary vector (Admin only)
+PUT {{bookUrl}}/summaryvector
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "id": "{{bookId}}",
+    "summaryvector": "cap nhat di"
+}

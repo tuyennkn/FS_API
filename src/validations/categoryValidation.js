@@ -1,4 +1,5 @@
 import Joi from 'joi'
+import { sendValidationError } from '../utils/responseHelper.js'
 
 // Middleware validation cho tạo Category
 const createCategory = async (req, res, next) => {
@@ -26,11 +27,12 @@ const createCategory = async (req, res, next) => {
     await schema.validateAsync(req.body, { abortEarly: false })
     next()
   } catch (err) {
-    const errors = err.details.map(e => e.message)
-    return res.status(400).json({
-      message: 'Validation error',
-      errors
-    })
+    const errors = err.details.map(detail => ({
+      field: detail.path.join('.'),
+      message: detail.message,
+      value: detail.context?.value
+    }))
+    return sendValidationError(res, errors)
   }
 }
 
@@ -62,11 +64,12 @@ const updateCategory = async (req, res, next) => {
     await schema.validateAsync(req.body, { abortEarly: false })
     next()
   } catch (err) {
-    const errors = err.details.map(e => e.message)
-    return res.status(400).json({
-      message: 'Validation error',
-      errors
-    })
+    const errors = err.details.map(detail => ({
+      field: detail.path.join('.'),
+      message: detail.message,
+      value: detail.context?.value
+    }))
+    return sendValidationError(res, errors)
   }
 }
 

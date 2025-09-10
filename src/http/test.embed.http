@@ -1,0 +1,20 @@
+@url = http://localhost:8000
+
+### Get Embedding
+POST {{url}}/embed
+Content-Type: application/json
+
+{
+    "text": "Your text to be embedded goes here."
+}
+
+### Batch Get Embeddings
+POST {{url}}/batch_embed
+Content-Type: application/json
+
+{
+    "texts": [
+        "First text to be embedded.",
+        "Second text to be embedded."
+    ]
+}

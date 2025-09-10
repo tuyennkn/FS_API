@@ -1,0 +1,54 @@
+@baseUrl = http://localhost:8080/router
+@commentUrl = {{baseUrl}}/comment
+
+# Sample tokens for testing
+@userToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YmRiNWY0M2E1MDAxNzA5NzI0YTMyNyIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzU3MzIzMDM1LCJleHAiOjE3NTczMjM5MzV9.Zss1j30HYudvHZ86yHFV2inBjGa3IQc7G1umgAeEanE
+@adminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YmRjMTg5YzIwNTZkZmFhMDliOTQxYiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1NzMyMzc1MCwiZXhwIjoxNzU3MzI0NjUwfQ.Kf1Jwgo4lqHdpSKtv9llq5QmZNU0C5bCsgsBvKYGawc
+@adminToken2 = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YmRjMTg5YzIwNTZkZmFhMDliOTQxYiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1NzMyNDExMywiZXhwIjoxNzU3MzI1MDEzfQ.uL8AwCaeDJVM63yBxDYMaFKbBJ9rkM6F49y9JQ_bHaU
+
+# Sample IDs for testing
+@bookId = 68be6f594a8baf2b62cbb93a
+@commentId = 68be9f5de1d554f4933a7f0c
+@commentId2 = 68be9e1f867d191f5d17f6aa
+
+###
+# Comment Routes
+###
+
+# Create new comment (User/Admin)
+POST {{commentUrl}}/create
+Content-Type: application/json
+Authorization: Bearer {{userToken}}
+
+{
+    "book_id": "{{bookId}}",
+    "rating": 5,
+    "content": "bo ich cho nguoi moi hoc"
+}
+
+###
+
+# Get all comments
+GET {{commentUrl}}/all
+
+###
+
+# Get comments by book ID
+GET {{commentUrl}}/book/{{bookId}}
+
+###
+
+# Update comment (Admin only)
+PUT {{commentUrl}}/update/{{commentId}}
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "content": "rat co loi"
+}
+
+###
+
+# Delete comment (Admin only)
+DELETE {{commentUrl}}/delete/{{commentId2}}
+Authorization: Bearer {{adminToken2}}

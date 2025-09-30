@@ -17,9 +17,12 @@ Router.post('/create', authenticateToken, checkRole('admin') , bookValidation.cr
 Router.put('/update', authenticateToken, checkRole('admin'), bookValidation.updateBook, bookController.updateBook)
 Router.put('/toggle-disable', authenticateToken, checkRole('admin'), bookController.toggleDisableBook)
 Router.get('/all', bookController.getAllBook)
-Router.get('/getBook/:id', bookController.getBookById)
+Router.get('/featured', bookController.getFeaturedBooks)
+Router.get('/paginated', bookController.getPaginatedBooks)
+Router.get('/getBook/:slug', bookController.getBookBySlug)
 Router.put('/summaryvector', bookController.summaryvectorBook)
 Router.post('/search', bookController.searchBooks)
+Router.post('/search-filters', bookController.searchKeywordAndFilters)
 
 // Import CSV route
 Router.post('/import-csv', authenticateToken, checkRole('admin'), bookController.importBooksFromCSV)

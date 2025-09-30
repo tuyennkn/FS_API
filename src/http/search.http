@@ -5,5 +5,5 @@ POST {{baseUrl}}/book/search
 Content-Type: application/json
 
 {
-    "query": "Tư vấn cho tôi các thể loại sách về công nghệ thông"
+    "query": "detective"
 }

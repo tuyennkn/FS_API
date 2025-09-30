@@ -16,6 +16,7 @@ export const CategoryDTO = {
     
     return {
       id: category._id,
+      slug: category.slug,
       name: category.name,
       description: category.description,
       isDisable: category.isDisable,
@@ -35,6 +36,7 @@ export const CategoryDTO = {
     return {
       id: category._id,
       name: category.name,
+      slug: category.slug,
       description: category.description,
       isDisable: category.isDisable
     }

@@ -8,4 +8,4 @@ const alstatisticSchema = new mongoose.Schema({
   end: { type: Date }
 }, { timestamps: true })
 
-export default mongoose.model('Alstatistic', alstatisticSchema)
+export default mongoose.model('alstatistics', alstatisticSchema)

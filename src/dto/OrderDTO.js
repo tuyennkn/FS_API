@@ -20,17 +20,29 @@ export const OrderDTO = {
     return {
       id: order._id,
       user_id: order.user_id,
-      books: order.books,
-      price: order.price,
+      items: order.items?.map(item => ({
+        book_id: item.book_id._id || item.book_id,
+        book: item.book_id.title ? {
+          id: item.book_id._id,
+          title: item.book_id.title,
+          author: item.book_id.author,
+          image: item.book_id.image?.[0],
+          slug: item.book_id.slug
+        } : undefined,
+        quantity: item.quantity,
+        price: item.price
+      })) || [],
+      total_price: order.total_price,
       payment_type: order.payment_type,
-      createdAt: order.createdAt,
-      updatedAt: order.updatedAt
+      status: order.status || 'pending',
+      created_at: order.createdAt,
+      updated_at: order.updatedAt
     }
   },
 
   /**
    * Chuẩn hóa thông tin đơn hàng với populated data
-   * @param {object} order - Order object với populated user và books
+   * @param {object} order - Order object với populated user và items
    * @returns {object} Order data with user and books info
    */
   toResponseWithPopulated: (order) => {
@@ -43,45 +55,23 @@ export const OrderDTO = {
       baseResponse.user = UserDTO.toPublicResponse(order.user_id)
     }
     
-    // Xử lý books array với populated data
-    if (order.books && Array.isArray(order.books)) {
-      baseResponse.books = order.books.map(bookItem => {
-        const result = {
-          book_id: bookItem.book_id,
-          quantity: bookItem.quantity
-        }
-        
-        // Nếu book được populate
-        if (bookItem.book_id && typeof bookItem.book_id === 'object') {
-          result.book = {
-            id: bookItem.book_id._id,
-            title: bookItem.book_id.title,
-            author: bookItem.book_id.author,
-            price: bookItem.book_id.price
-          }
-        }
-        
-        return result
-      })
-    }
-    
     return baseResponse
   },
 
   /**
-   * Chuẩn hóa thông tin đơn hàng cho list (ít thông tin hơn)
+   * Chuẩn hóa dữ liệu cho admin response
    * @param {object} order - Order object
-   * @returns {object} Simplified order data
+   * @returns {object} Order data for admin
    */
-  toListResponse: (order) => {
-    if (!order) return null
-    
+  toAdminResponse: (order) => {
+    const response = OrderDTO.toResponse(order)
     return {
-      id: order._id,
-      price: order.price,
-      payment_type: order.payment_type,
-      bookCount: order.books ? order.books.length : 0,
-      createdAt: order.createdAt
+      ...response,
+      user: order.user_id.email ? {
+        id: order.user_id._id,
+        email: order.user_id.email,
+        name: order.user_id.name
+      } : undefined
     }
   },
 
@@ -90,28 +80,26 @@ export const OrderDTO = {
    * @param {Array} orders - Array of order objects
    * @returns {Array} Array of cleaned order data
    */
-  toResponseList: (orders) => {
+  toListResponse: (orders) => {
     if (!Array.isArray(orders)) return []
     return orders.map(order => OrderDTO.toResponse(order))
   },
 
   /**
-   * Chuẩn hóa danh sách đơn hàng với populated data
-   * @param {Array} orders - Array of order objects với populated data
-   * @returns {Array} Array of order data with populated info
+   * Tạo order từ request data
+   * @param {object} data - Request data
+   * @returns {object} Order data for creation
    */
-  toResponseListWithPopulated: (orders) => {
-    if (!Array.isArray(orders)) return []
-    return orders.map(order => OrderDTO.toResponseWithPopulated(order))
-  },
-
-  /**
-   * Chuẩn hóa danh sách đơn hàng (list format)
-   * @param {Array} orders - Array of order objects
-   * @returns {Array} Array of simplified order data
-   */
-  toListResponseList: (orders) => {
-    if (!Array.isArray(orders)) return []
-    return orders.map(order => OrderDTO.toListResponse(order))
+  fromCreateRequest: (data) => {
+    return {
+      user_id: data.user_id,
+      items: data.items?.map(item => ({
+        book_id: item.product_id || item.book_id,
+        quantity: item.quantity,
+        price: item.price
+      })) || [],
+      total_price: data.total_price,
+      payment_type: data.payment_type || 'cash'
+    }
   }
 }

@@ -12,11 +12,14 @@ import { SUCCESS_MESSAGES, ERROR_MESSAGES } from '../utils/constants.js'
 const createCategory = async (req, res, next) => {
     try {
         const { name, description } = req.body
-        const exists = await Category.findOne({ name })
+        // tạo slug từ name (có tiếng Việt)
+        const slug = name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '')
+        // kiểm tra tên đã tồn tại chưa
+        const exists = await Category.findOne({ slug })
         if (exists) {
             return sendConflict(res, 'Tên danh mục đã tồn tại')
         }
-        const category = new Category({ name, description })
+        const category = new Category({ name, description, slug })
         await category.save()
 
         const responseData = CategoryDTO.toResponse(category)

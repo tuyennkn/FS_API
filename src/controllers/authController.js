@@ -18,8 +18,8 @@ import { SUCCESS_MESSAGES, ERROR_MESSAGES, ERROR_CODES } from '../utils/constant
 
 const register = async (req, res, next) => {
   try {
-    const { username, fullname, password, email, phone, gender, birthday, avatar, persona, address } = req.body
-    const newUser = new User({ username, fullname, password, email, phone, gender, birthday, avatar, persona, address })
+    const { username, fullname, password, email, phone, gender, birthday } = req.body
+    const newUser = new User({ username, fullname, password, email, phone, gender, birthday })
     await newUser.save()
 
     const deviceInfo = {

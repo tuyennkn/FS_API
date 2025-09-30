@@ -1,13 +1,14 @@
 import mongoose from 'mongoose'
 
 const orderSchema = new mongoose.Schema({
-  user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  books: [{
-    book_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Book', required: true },
-    quantity: { type: Number, required: true }
+  user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'users', required: true },
+  items: [{
+    book_id: { type: mongoose.Schema.Types.ObjectId, ref: 'books', required: true },
+    quantity: { type: Number, required: true },
+    price: { type: Number, required: true }
   }],
-  price: { type: Number, required: true },
-  payment_type: { type: String}
+  total_price: { type: Number, required: true },
+  payment_type: { type: String, required: true }
 }, { timestamps: true })
 
-export default mongoose.model('Order', orderSchema)
+export default mongoose.model('orders', orderSchema)

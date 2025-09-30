@@ -9,9 +9,9 @@ const userSchema = new mongoose.Schema({
   phone: { type: String, required: true, unique: true },
   gender: { type: String, required: true },
   birthday: { type: Date, required: true },
-  avatar: { type: String, required: true },
+  avatar: { type: String, default: 'https://www.pngall.com/wp-content/uploads/5/Profile-PNG-File.png' },
   persona: { type: String },
-  address: { type: String, required: true },
+  address: { type: String, default: '' },
   role: { type: String, default: 'user' }
 }, {
   timestamps: true
@@ -35,5 +35,5 @@ userSchema.methods.comparePassword = async function(password) {
   return await bcrypt.compare(password, this.password)
 }
 
-const User = mongoose.model('User', userSchema)
+const User = mongoose.model('users', userSchema)
 export default User

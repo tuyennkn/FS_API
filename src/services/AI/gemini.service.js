@@ -1,6 +1,6 @@
 // src/services/gemini.service.js
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { env } from '~/config/environment'
+import { env } from '../../config/environment.js'
 
 const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
 
@@ -44,15 +44,45 @@ export async function moderateImage(base64Image) {
   if (output === 'UNSAFE') return false
 }
 
-// Hàm biến query phức tạp thành câu truy vấn đơn giản
+/**
+ * Biến câu truy vấn phức tạp thành câu truy vấn đơn giản
+ * @param {string} query - Câu truy vấn phức tạp
+ * @returns {Promise<Object>} - Câu truy vấn đơn giản dưới dạng JSON { isMeaningless: boolean, simplifiedQuery: string }
+ */
 export async function simplifyQuery(query) {
   const prompt = `
-  Bạn là trợ lý tìm kiếm sách.
-  Biến câu truy vấn phức tạp sau thành câu truy vấn đơn giản, ngắn gọn, dễ hiểu.
-  Chỉ trả về câu truy vấn, không giải thích gì thêm.
-  Câu truy vấn: "${query}"
+Bạn là trợ lý tìm kiếm sách.
+Nhiệm vụ: Biến câu truy vấn phức tạp sau thành câu truy vấn ngắn gọn, dễ hiểu.
+Nếu câu truy vấn vô nghĩa hoặc không liên quan đến sách, chỉ trả về JSON:
+{"isMeaningless": true, "simplifiedQuery": ""}
+
+Ngược lại, trả về JSON:
+{"isMeaningless": false, "simplifiedQuery": "<truy vấn rút gọn>"}
+
+Chỉ trả về JSON hợp lệ, không viết thêm gì khác.
+Câu truy vấn: "${query}"
+`;
+
+  const result = await model.generateContent(prompt);
+// result.response.text trả về string json```json
+// {"isMeaningless": false, "simplifiedQuery": "Sách trinh thám"}
+// ```
+  const output = result.response.text()
+
+  // Loại bỏ các ký tự không cần thiết
+  const cleanedOutput = output.replace(/```json|```/g, '').trim();
+
+  return JSON.parse(cleanedOutput);
+}
+
+// Hàm phân tích category từ genre sách
+export async function analyzeCategoryFromGenre(genre) {
+  const prompt = `
+  Bạn là trợ lý phân loại sách.
+  Phân tích thể loại sách từ thể loại: "${genre}".
+  Chỉ trả về duy nhất một tên thể loại phù hợp nhất và mô tả đề xuất cho thể loại đó, định dang json gồm 2 trường name, description. Không giải thích gì thêm.
   `
   const result = await model.generateContent(prompt);
   const output = result.response.text()
   return output
-} 
+}

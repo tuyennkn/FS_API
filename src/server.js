@@ -18,8 +18,10 @@ import { generateEmbedding, generateBatchEmbeddings } from './services/AI/embedd
 const START_SERVER = () => {
   const app = express()
   app.use(cors())
-  //enable req.body data json
-  app.use(express.json())
+  
+  // Increase payload size limits for file uploads and large data imports
+  app.use(express.json({ limit: '50mb' }))
+  app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
   const hostname = 'localhost'
   const port = 8080

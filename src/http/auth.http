@@ -26,14 +26,11 @@ Content-Type: application/json
 Authorization: Bearer {{userToken}}
 
 {
-    "username": "heoconhehe",
-    "fullname": "Nguyen Kim Ngoc Tuyeh",
-    "email": "heconh2h2@gmail.com",
+    "username": "admin",
+    "fullname": "Admin A",
+    "email": "admin@example.com",
     "password": "123456",
-    "phone": "0123456989",
+    "phone": "0123457989",
     "gender": "male",
-    "birthday": "2025-09-02",
-    "avatar": "https://yt3.ggpht.com/yti/ANjgQV8aHPprI669d4VewBxP8wRLu_l79wdOsycNrupXa5u-jpo=s108-c-k-c0x00ffffff-no-rj",
-    "persona": "dddd",
-    "address": "Binh Duong"
+    "birthday": "2025-09-02"
 }

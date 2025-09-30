@@ -69,25 +69,6 @@ const createUser = async (req, res, next) => {
       .optional()
       .messages({
         'date.base': 'Birthday phải là ngày hợp lệ'
-      }),
-
-    avatar: Joi.string()
-      .uri()
-      .optional()
-      .messages({
-        'string.uri': 'Avatar phải là một URL hợp lệ'
-      }),
-
-    persona: Joi.string()
-      .optional()
-      .messages({
-        'string.base': 'Persona phải là chuỗi'
-      }),
-
-    address: Joi.string()
-      .optional()
-      .messages({
-        'string.base': 'Address phải là chuỗi'
       })
   })
 

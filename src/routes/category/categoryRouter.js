@@ -12,7 +12,7 @@ Router.get('/status', (req, res) => {
 
 // Tạo danh mục
 Router.get('/allCategories', authenticateToken, checkRole('admin'), categoryController.listCategories)
-Router.get('/getCategory', authenticateToken, checkRole('admin'), categoryController.getCategory)
+Router.post('/getCategory', authenticateToken, checkRole('admin'), categoryController.getCategory)
 Router.post('/createCategory', authenticateToken, checkRole('admin'), categoryValidation.createCategory, categoryController.createCategory)
 Router.put('/updateCategory', authenticateToken, checkRole('admin'), categoryValidation.updateCategory, categoryController.updateCategory)
 Router.put('/toggle-disable', authenticateToken, checkRole('admin'), categoryController.toggleDisbaleCategory)

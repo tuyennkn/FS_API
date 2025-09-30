@@ -9,9 +9,11 @@ import { CategoryDTO } from './CategoryDTO.js'
 import { CommentDTO } from './CommentDTO.js'
 import { OrderDTO } from './OrderDTO.js'
 import { AuthDTO } from './AuthDTO.js'
+import { PendingCategoryDTO } from './PendingCategoryDTO.js'
+import { CartDTO } from './CartDTO.js'
 
 // Named exports for easy destructuring
-export { UserDTO, BookDTO, CategoryDTO, CommentDTO, OrderDTO, AuthDTO }
+export { UserDTO, BookDTO, CategoryDTO, CommentDTO, OrderDTO, AuthDTO, PendingCategoryDTO, CartDTO }
 
 // Default export for backward compatibility
 export default {
@@ -20,5 +22,7 @@ export default {
   CategoryDTO,
   CommentDTO,
   OrderDTO,
-  AuthDTO
+  AuthDTO,
+  PendingCategoryDTO,
+  CartDTO
 }

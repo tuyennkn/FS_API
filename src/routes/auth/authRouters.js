@@ -5,6 +5,7 @@ import { authValidation } from '~/validations/authValidation.js'
 import { checkAvatar } from '~/middlewares/moderation.middleware.js'
 import { sendSuccess, sendValidationError } from '../../utils/responseHelper.js'
 import { SUCCESS_MESSAGES } from '../../utils/constants.js'
+import { authenticateToken } from '~/middlewares/authMiddleware.js'
 
 const Router = express.Router()
 
@@ -23,11 +24,12 @@ Router.post('/test-validation', (req, res) => {
 })
 
 // Các route chính
-Router.post('/register', authValidation.createUser, checkAvatar, authController.register)
+Router.post('/register', authValidation.createUser, authController.register)
 Router.post('/login', authValidation.validateLogin, authController.login)
 Router.post('/refresh', authController.refreshToken)
 Router.post('/logout', authController.logout)
 Router.post('/logout-all', authController.logoutAll)
-Router.get('/me', authController.getMe)
+
+Router.get('/me', authenticateToken, authController.getMe)
 
 export default Router

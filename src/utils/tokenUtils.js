@@ -6,7 +6,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_here'
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'your_refresh_token_secret_here'
 
 // Thời gian hết hạn
-const ACCESS_TOKEN_EXPIRES = '15m' // 15 phút
+const ACCESS_TOKEN_EXPIRES = '1d' // 1 ngày
 const REFRESH_TOKEN_EXPIRES = '7d' // 7 ngày
 
 // Tạo access token (chứa id + role)

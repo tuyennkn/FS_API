@@ -136,7 +136,7 @@ import { BookDTO } from '../dto/index.js'
 
 // Book với category populated
 const getBookWithCategory = async (req, res) => {
-  const book = await Book.findById(req.params.id).populate('category_id')
+  const book = await Book.findById(req.params.id).populate('category')
   const response = BookDTO.toResponseWithCategory(book)
   return sendSuccess(res, response)
 }

@@ -5,7 +5,7 @@ import { env } from '../../config/environment.js'
 const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
 
 // Dùng model nhẹ để tiết kiệm quota
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' })
 
 // Hàm kiểm tra text
 export async function moderateText(text) {
@@ -75,11 +75,11 @@ Câu truy vấn: "${query}"
   return JSON.parse(cleanedOutput);
 }
 
-// Hàm phân tích category từ genre sách
-export async function analyzeCategoryFromGenre(genre) {
+// Hàm phân tích category từ genre, title, description sách
+export async function analyzeCategoryFromGenre(genre, title, author) {
   const prompt = `
   Bạn là trợ lý phân loại sách.
-  Phân tích thể loại sách từ thể loại: "${genre}".
+  Phân tích thể loại sách từ thể loại: "${genre}", tiêu đề: "${title}", tác giả: "${author}".
   Chỉ trả về duy nhất một tên thể loại phù hợp nhất và mô tả đề xuất cho thể loại đó, định dang json gồm 2 trường name, description. Không giải thích gì thêm.
   `
   const result = await model.generateContent(prompt);

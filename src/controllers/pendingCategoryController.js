@@ -170,9 +170,11 @@ export const approvePendingCategory = async (req, res) => {
       categoryId = existingCategory._id
     } else {
       // Tạo category mới
+      const slug = category_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
       const newCategory = new Category({
         name: category_name,
-        description: category_description
+        description: category_description,
+        slug
       })
       await newCategory.save()
       categoryId = newCategory._id

@@ -102,7 +102,8 @@ const logoutAll = async (req, res, next) => {
 
 const getMe = async (req, res, next) => {
   try {
-    const { userId } = req.query
+    const userId = req.user?.id
+    
     if (!userId) {
       return sendBadRequest(res, ERROR_MESSAGES.REQUIRED_FIELD_MISSING, { field: 'userId' })
     }

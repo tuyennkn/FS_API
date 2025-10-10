@@ -1,6 +1,7 @@
 import Order from "../models/Order.js";
 import Cart from "../models/Cart.js";
 import Book from "../models/Book.js";
+import User from "../models/User.js";
 import {
   sendSuccess,
   sendError,
@@ -14,8 +15,13 @@ import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "../utils/constants.js";
 // Create order from cart
 const createOrder = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { payment_type } = req.body;
+    const userId = req.user._id || req.user.id;
+    const { 
+      payment_type, 
+      shipping_fee, 
+      shipping_address, 
+      shipping_phone_number 
+    } = req.body;
     
     // Get user's cart
     const cart = await Cart.findOne({ user_id: userId }).populate('items.product', 'price quantity');
@@ -45,7 +51,11 @@ const createOrder = async (req, res) => {
       user_id: userId,
       items: orderItems,
       total_price,
-      payment_type: payment_type || 'cash'
+      shipping_fee: shipping_fee || 30000, // Default 30k VND
+      shipping_address: shipping_address,
+      shipping_phone_number: shipping_phone_number,
+      payment_type: payment_type || 'cash',
+      status: 'pending'
     };
     
     const order = new Order(orderData);
@@ -82,7 +92,7 @@ const createOrder = async (req, res) => {
 // Create order directly (without cart)
 const createDirectOrder = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user._id || req.user.id;
     const orderData = OrderDTO.fromCreateRequest(req.body);
     orderData.user_id = userId;
     
@@ -125,22 +135,31 @@ const createDirectOrder = async (req, res) => {
 // Get user's orders
 const getUserOrders = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user._id || req.user.id;
+    console.log('Getting orders for user:', userId);
+    
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
     
     const orders = await Order.find({ user_id: userId })
-      .populate('items.book_id', 'title author image slug')
+      .populate({
+        path: 'items.book_id',
+        select: 'title author image slug',
+        options: { strictPopulate: false } // Allow missing references
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
+    
+    console.log(`Found ${orders.length} orders for user ${userId}`);
     
     const total = await Order.countDocuments({ user_id: userId });
     
     const responseData = OrderDTO.toListResponse(orders);
     return sendPaginated(res, responseData, page, limit, total, SUCCESS_MESSAGES.DATA_RETRIEVED);
   } catch (error) {
+    console.error('Error in getUserOrders:', error);
     return sendError(res, ERROR_MESSAGES.INTERNAL_ERROR, 500, {
       message: error.message,
     });
@@ -175,18 +194,77 @@ const getAllOrders = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+    const status = req.query.status;
+    const search = req.query.search;
     
-    const orders = await Order.find()
-      .populate('user_id', 'email name')
+    // Build query
+    let query = {};
+    if (status) {
+      query.status = status;
+    }
+    
+    // Search functionality (by user email/name or order ID)
+    if (search) {
+      // First, find users matching the search term
+      const users = await User.find({
+        $or: [
+          { fullname: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } }
+        ]
+      }).select('_id');
+      
+      const userIds = users.map(user => user._id);
+      
+      query.$or = [
+        { user_id: { $in: userIds } },
+        { _id: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    const orders = await Order.find(query)
+      .populate('user_id', 'email fullname')
       .populate('items.book_id', 'title author image slug')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
     
-    const total = await Order.countDocuments();
+    const total = await Order.countDocuments(query);
     
-    const responseData = orders.map(order => OrderDTO.toAdminResponse(order));
+    const responseData = orders.map(order => OrderDTO.toResponse(order));
     return sendPaginated(res, responseData, page, limit, total, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  } catch (error) {
+    return sendError(res, ERROR_MESSAGES.INTERNAL_ERROR, 500, {
+      message: error.message,
+    });
+  }
+};
+
+// Admin: Update order status
+const updateOrderStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    // Validate status
+    const validStatuses = ['pending', 'confirmed', 'processing', 'shipping', 'delivered', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return sendError(res, 'Invalid status', 400);
+    }
+    
+    const order = await Order.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    )
+      .populate('user_id', 'email fullname')
+      .populate('items.book_id', 'title author image slug');
+    
+    if (!order) {
+      return sendError(res, 'Order not found', 404);
+    }
+    
+    const responseData = OrderDTO.toResponse(order);
+    return sendSuccess(res, responseData, 'Order status updated successfully');
   } catch (error) {
     return sendError(res, ERROR_MESSAGES.INTERNAL_ERROR, 500, {
       message: error.message,
@@ -199,5 +277,6 @@ export {
   createDirectOrder, 
   getUserOrders, 
   getOrderById, 
-  getAllOrders 
+  getAllOrders,
+  updateOrderStatus
 };

@@ -3,6 +3,9 @@ import csv from 'csv-parser';
 import fs from 'fs';
 import multer from 'multer';
 import path from 'path';
+import { generateEmbedding } from '../services/AI/embedding.service.js';
+import { embeddingTextGenerator } from '../utils/algorithms.js';
+import { handleCategoryForBook } from '../services/categoryAnalysis.service.js';
 
 // Configure multer for CSV file upload
 const storage = multer.diskStorage({
@@ -81,16 +84,33 @@ export const importBooksFromCSV = async (req, res) => {
     const csvStream = fs.createReadStream(csvFilePath)
       .pipe(csv({
         mapHeaders: ({ header }) => {
-          // Map CSV headers to our field names
+          // Map CSV headers to our field names based on the actual CSV format
           const headerMap = {
-            'Title': 'title',
-            'Authors': 'authors',
-            'Description': 'description',
-            'Category': 'genre',
-            'Publisher': 'publisher',
-            'Price Starting With ($)': 'price',
-            'Publish Date (Month)': 'publishMonth',
-            'Publish Date (Year)': 'publishYear'
+            'bookId': 'bookId',
+            'title': 'title',
+            'series': 'series',
+            'author': 'authors',
+            'rating': 'rating',
+            'description': 'description',
+            'language': 'language',
+            'isbn': 'isbn',
+            'genres': 'genres',
+            'characters': 'characters',
+            'bookFormat': 'bookFormat',
+            'edition': 'edition',
+            'pages': 'pages',
+            'publisher': 'publisher',
+            'publishDate': 'publishDate',
+            'firstPublishDate': 'firstPublishDate',
+            'awards': 'awards',
+            'numRatings': 'numRatings',
+            'ratingsByStars': 'ratingsByStars',
+            'likedPercent': 'likedPercent',
+            'setting': 'setting',
+            'coverImg': 'coverImg',
+            'bbeScore': 'bbeScore',
+            'bbeVotes': 'bbeVotes',
+            'price': 'price'
           };
           return headerMap[header] || header.toLowerCase();
         }
@@ -102,36 +122,72 @@ export const importBooksFromCSV = async (req, res) => {
       try {
         // Parse publish date
         let publishDate = null;
-        if (row.publishMonth && row.publishYear) {
-          const month = parseMonth(row.publishMonth);
-          const year = parseInt(row.publishYear) || new Date().getFullYear();
-          publishDate = new Date(year, month, 1);
+        if (row.publishDate) {
+          try {
+            // Handle date format like "09/14/08"
+            publishDate = new Date(row.publishDate);
+            if (isNaN(publishDate.getTime())) {
+              publishDate = null;
+            }
+          } catch (e) {
+            publishDate = null;
+          }
         }
 
-        // Create book object
+        // Parse genres array from string like "['Young Adult', 'Fiction', 'Dystopia']"
+        let genre = '';
+        if (row.genres) {
+          try {
+            const genresArray = JSON.parse(row.genres.replace(/'/g, '"'));
+            genre = Array.isArray(genresArray) ? genresArray.join(', ') : row.genres;
+          } catch (e) {
+            genre = row.genres;
+          }
+        }
+
+        // Generate slug from title
+        const slug = (row.title || '').toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '') + '-' + Date.now();
+
+        // Create book object with new schema
         const bookData = {
           title: row.title || `Untitled Book ${rowIndex}`,
-          author: cleanAuthor(row.authors),
-          summary: row.description || '',
+          author: row.authors || '',
+          description: row.description || '',
+          slug: slug,
           publisher: row.publisher || '',
-          price: parsePrice(row.price),
-          genre: cleanGenre(row.genre),
-          publishDate: publishDate,
+          price: parsePrice(row.price) || 0,
+          rating: parseFloat(row.rating) || 0,
+          genre: cleanGenre(genre),
           quantity: 1, // Default quantity
-          rating: 0, // Default rating
           sold: 0,
-          isDisable: false
+          image: row.coverImg ? [row.coverImg] : [],
+          isDisable: false,
+
+          // Map to attributes object for additional fields
+          attributes: {
+            isbn: row.isbn || null,
+            pages: row.pages ? parseInt(row.pages) : null,
+            language: row.language || null,
+            edition: row.edition || null,
+            bookFormat: row.bookFormat || null,
+            series: row.series || null,
+            awards: row.awards || null,
+            characters: row.characters || null,
+            setting: row.setting || null
+          }
         };
 
         // Validate required fields
-        if (!bookData.title.trim()) {
+        if (!bookData.title || !bookData.title.trim()) {
           errors.push(`Row ${rowIndex}: Title is required`);
           return;
         }
 
-        if (bookData.price <= 0) {
-          errors.push(`Row ${rowIndex}: Valid price is required`);
-          return;
+        // Price is optional, set to 0 if not provided or invalid
+        if (isNaN(bookData.price) || bookData.price < 0) {
+          bookData.price = 0;
         }
 
         books.push(bookData);
@@ -155,8 +211,60 @@ export const importBooksFromCSV = async (req, res) => {
           });
         }
 
-        // Insert books into database
-        const insertedBooks = await Book.insertMany(books, { ordered: false });
+        // Process books: generate embeddings and handle categories
+        const processedBooks = [];
+        const batchSize = 10; // Process in small batches to avoid memory issues
+
+        for (let i = 0; i < books.length; i += batchSize) {
+          const batch = books.slice(i, i + batchSize);
+          
+          for (const bookData of batch) {
+            try {
+              // Generate embedding for the book
+              if (bookData.title && bookData.description) {
+                const embedding = await generateEmbedding(
+                  embeddingTextGenerator(bookData)
+                );
+                bookData.embedding = embedding;
+              }
+
+              // Create the book
+              const book = new Book(bookData);
+              await book.save();
+              
+              // Handle category assignment or create pending category
+              if (bookData.genre && !bookData.category) {
+                try {
+                  const matchedCategory = await handleCategoryForBook({
+                    genre: bookData.genre,
+                    _id: book._id,
+                    title: book.title,
+                    author: book.author,
+                    image: book.image
+                  });
+
+                  if (matchedCategory) {
+                    book.category = matchedCategory._id;
+                    await book.save();
+                    console.log(`Auto-assigned category: ${matchedCategory.name} to book: ${book.title} (CSV import)`);
+                  } else {
+                    console.log(`Created pending category for book: ${book.title} with genre: ${bookData.genre} (CSV import)`);
+                  }
+                } catch (categoryError) {
+                  console.error('Error handling category for book during CSV import:', categoryError);
+                  // Don't fail book creation if category handling fails
+                }
+              }
+
+              processedBooks.push(book);
+            } catch (bookError) {
+              console.error(`Error processing book: ${bookData.title}`, bookError);
+              errors.push(`Error processing book: ${bookData.title} - ${bookError.message}`);
+            }
+          }
+        }
+
+        const insertedBooks = processedBooks;
 
         res.status(201).json({
           success: true,

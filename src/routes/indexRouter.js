@@ -8,6 +8,10 @@ import uploadRouter from './upload/uploadRouter.js'
 import pendingCategoryRoutes from './category/pendingCategoryRoutes.js'
 import cartRouter from './cart/cartRouter.js'
 import orderRouter from './order/orderRouter.js'
+import userRouter from './user/userRouter.js'
+import importRouter from './import/importRouter.js'
+import adminRouter from './admin/adminRouter.js'
+import statisticRouter from './statistic/statisticRouter.js'
 
 const Router = express.Router()
 Router.use('/auth', authRouters)
@@ -18,7 +22,10 @@ Router.use('/upload', uploadRouter)
 Router.use('/pending-categories', pendingCategoryRoutes)
 Router.use('/cart', cartRouter)
 Router.use('/order', orderRouter)
-// Router.use('/import', importRouters)
+Router.use('/import', importRouter)
+Router.use('/user', userRouter)
+Router.use('/admin', adminRouter)
+Router.use('/statistics', statisticRouter)
 
 // Kiểm tra status API
 Router.get('/status', (req, res) => {

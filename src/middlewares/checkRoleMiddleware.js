@@ -1,5 +1,5 @@
 // Middleware kiểm tra role
-export const checkRole = (requiredRole) => {
+export const checkRole = (requiredRoles) => {
   return (req, res, next) => {
     try {
       // Giả sử bạn đã decode JWT và gắn user vào req.user
@@ -9,7 +9,10 @@ export const checkRole = (requiredRole) => {
         return res.status(401).json({ message: 'Chưa xác thực người dùng' })
       }
 
-      if (user.role !== requiredRole) {
+      // Support both string and array of roles
+      const roles = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles];
+      
+      if (!roles.includes(user.role)) {
         return res.status(403).json({ message: 'Không có quyền truy cập' })
       }
 

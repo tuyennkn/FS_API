@@ -25,7 +25,7 @@ export const handleCategoryForBook = async (bookData) => {
         // Bước 1: gọi AI để phân tích genre và suy ra category
         let aiAnalysis
         try {
-            const analysisResult = await analyzeCategoryFromGenre(genre)
+            const analysisResult = await analyzeCategoryFromGenre(genre, title, author)
             // Parse JSON response từ AI
             const cleanedResult = analysisResult.replace(/```json|```/g, '').trim()
             aiAnalysis = JSON.parse(cleanedResult)

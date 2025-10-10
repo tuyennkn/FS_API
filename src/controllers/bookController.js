@@ -299,7 +299,7 @@ const searchBooks = async (req, res) => {
 
     // Simplify Query
     const simplifiedQuery = await simplifyQuery(query);
-    console.log("Simplified Query:", simplifiedQuery);
+    // console.log("Simplified Query:", simplifiedQuery);
 
     if(simplifiedQuery.isMeaningless) {
       return sendSuccess(res, [], SUCCESS_MESSAGES.BOOK_RETRIEVED);

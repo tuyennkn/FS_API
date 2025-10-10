@@ -48,6 +48,10 @@ const START_SERVER = () => {
     await CONNECT_DB()
     console.log('ket noi thanh cong toi MongoDB cua Atlas')
 
+    // Cleanup stuck AI reports after database connection
+    const { cleanupStuckReports } = await import('./controllers/aiStatisticController.js')
+    await cleanupStuckReports()
+
     START_SERVER()
   } catch (error) {
     console.error(error)

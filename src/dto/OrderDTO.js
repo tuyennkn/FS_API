@@ -20,23 +20,32 @@ export const OrderDTO = {
     return {
       id: order._id,
       user_id: order.user_id,
-      items: order.items?.map(item => ({
-        book_id: item.book_id._id || item.book_id,
-        book: item.book_id.title ? {
-          id: item.book_id._id,
-          title: item.book_id.title,
-          author: item.book_id.author,
-          image: item.book_id.image?.[0],
-          slug: item.book_id.slug
-        } : undefined,
-        quantity: item.quantity,
-        price: item.price
-      })) || [],
+      items: order.items?.map(item => {
+        // Handle case where book_id might be null or not populated
+        const bookId = item.book_id;
+        const isPopulated = bookId && typeof bookId === 'object' && bookId._id;
+        
+        return {
+          book_id: isPopulated ? bookId._id : bookId,
+          book: isPopulated ? {
+            id: bookId._id,
+            title: bookId.title,
+            author: bookId.author,
+            image: bookId.image?.[0],
+            slug: bookId.slug
+          } : null,
+          quantity: item.quantity,
+          price: item.price
+        };
+      }) || [],
       total_price: order.total_price,
+      shipping_fee: order.shipping_fee || 0,
+      shipping_address: order.shipping_address,
+      shipping_phone_number: order.shipping_phone_number,
       payment_type: order.payment_type,
       status: order.status || 'pending',
-      created_at: order.createdAt,
-      updated_at: order.updatedAt
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt
     }
   },
 
@@ -99,7 +108,11 @@ export const OrderDTO = {
         price: item.price
       })) || [],
       total_price: data.total_price,
-      payment_type: data.payment_type || 'cash'
+      shipping_fee: data.shipping_fee || 0,
+      shipping_address: data.shipping_address,
+      shipping_phone_number: data.shipping_phone_number,
+      payment_type: data.payment_type || 'cash',
+      status: data.status || 'pending'
     }
   }
 }

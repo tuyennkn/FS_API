@@ -1,0 +1,29 @@
+@baseUrl = http://localhost:8080/router
+@authUrl = {{baseUrl}}/user
+
+# Sample tokens for testing
+@userToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZDIxNWY5YjhiZDkyOTQyMDk3ZWQ3ZCIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1OTI4NTg2OSwiZXhwIjoxNzU5MzcyMjY5fQ.o00gpUuKQmhdRLOATC0OM_cmfjccr6XsyXsd5M2y-B8
+@adminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZDIxNWY5YjhiZDkyOTQyMDk3ZWQ3ZCIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1OTI4NTg2OSwiZXhwIjoxNzU5MzcyMjY5fQ.o00gpUuKQmhdRLOATC0OM_cmfjccr6XsyXsd5M2y-B8
+
+###
+# User Routes
+###
+
+# Get user by id
+GET {{authUrl}}/68d215f9b8bd92942097ed7d
+Content-Type: application/json
+Authorization: Bearer {{userToken}}
+
+###
+
+# Update user
+PUT {{authUrl}}/68bdb5f43a5001709724a327
+Content-Type: application/json
+Authorization: Bearer {{userToken}}
+
+{
+    "fullname": "Admin C"
+}
+
+###
+

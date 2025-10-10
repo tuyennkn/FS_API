@@ -8,7 +8,15 @@ const orderSchema = new mongoose.Schema({
     price: { type: Number, required: true }
   }],
   total_price: { type: Number, required: true },
-  payment_type: { type: String, required: true }
+  shipping_fee: { type: Number, default: 0 },
+  shipping_address: { type: String, required: true },
+  shipping_phone_number: { type: String, required: true },
+  payment_type: { type: String, required: true },
+  status: { 
+    type: String, 
+    enum: ['pending', 'confirmed', 'processing', 'shipping', 'delivered', 'cancelled'], 
+    default: 'pending' 
+  }
 }, { timestamps: true })
 
 export default mongoose.model('orders', orderSchema)

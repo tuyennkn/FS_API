@@ -3,10 +3,12 @@ import fs from 'fs'
 
 export async function checkComment(req, res, next) {
   try {
-    const { content } = req.body
-    if (!content) next()
+    const { comment } = req.body
+    if (!comment) {
+      return next()
+    }
 
-    const isSafe = await moderateText(content)
+    const isSafe = await moderateText(comment)
     if (!isSafe) {
       return res.status(400).json({ message: 'Nội dung comment phản cảm, không được phép!' })
     }
@@ -14,7 +16,7 @@ export async function checkComment(req, res, next) {
     next()
   } catch (err) {
     console.error('Moderation error:', err)
-    res.status(500).json({ message: 'Lỗi kiểm tra nội dung' })
+    return res.status(500).json({ message: 'Lỗi kiểm tra nội dung' })
   }
 }
 export async function checkAvatar(req, res, next) {
@@ -44,7 +46,7 @@ export async function checkAvatar(req, res, next) {
     next()
   } catch (err) {
     console.error('Moderation error:', err)
-    res.status(500).json({ message: 'Lỗi kiểm tra ảnh' })
+    return res.status(500).json({ message: 'Lỗi kiểm tra ảnh' })
   }
 }
 

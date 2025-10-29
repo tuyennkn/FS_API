@@ -13,7 +13,7 @@ import { SUCCESS_MESSAGES, ERROR_MESSAGES } from '../utils/constants.js'
 
 const createComment = async (req, res, next) => {
   try {
-    const { book_id, rating, content } = req.body
+    const { book_id, rating, comment: commentText } = req.body
 
     // 1. Kiểm tra sách có tồn tại không
     const book = await Book.findById(book_id)
@@ -25,7 +25,7 @@ const createComment = async (req, res, next) => {
     const comment = new Comment({
       book_id,
       rating,
-      content,
+      comment: commentText,
       user_id: req.user._id
     })
 

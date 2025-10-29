@@ -22,7 +22,8 @@ export const CommentDTO = {
       book_id: comment.book_id,
       user_id: comment.user_id,
       rating: comment.rating,
-      content: comment.content,
+      comment: comment.comment,
+      isDisabled: comment.isDisabled,
       createdAt: comment.createdAt,
       updatedAt: comment.updatedAt
     }
@@ -66,7 +67,8 @@ export const CommentDTO = {
     return {
       id: comment._id,
       rating: comment.rating,
-      content: comment.content,
+      comment: comment.comment,
+      isDisabled: comment.isDisabled,
       createdAt: comment.createdAt
     }
   },

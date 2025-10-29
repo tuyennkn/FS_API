@@ -42,8 +42,8 @@ export const BookDTO = {
         language: book.attributes.language,
         edition: book.attributes.edition,
         bookFormat: book.attributes.bookFormat,
-        characters: book.attributes.characters,
-        awards: book.attributes.awards
+        characters: Array.isArray(book.attributes.characters) ? book.attributes.characters : [],
+        awards: Array.isArray(book.attributes.awards) ? book.attributes.awards : []
       } : null
     }
 

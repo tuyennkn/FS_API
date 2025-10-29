@@ -134,6 +134,18 @@ export const importBooksFromCSV = async (req, res) => {
           }
         }
 
+        // Helper function to parse array fields from string
+        const parseArrayField = (field) => {
+          if (!field) return null;
+          if (Array.isArray(field)) return field;
+          try {
+            const parsed = JSON.parse(field.replace(/'/g, '"'));
+            return Array.isArray(parsed) ? parsed : null;
+          } catch (e) {
+            return null;
+          }
+        };
+
         // Parse genres array from string like "['Young Adult', 'Fiction', 'Dystopia']"
         let genre = '';
         if (row.genres) {
@@ -173,8 +185,8 @@ export const importBooksFromCSV = async (req, res) => {
             edition: row.edition || null,
             bookFormat: row.bookFormat || null,
             series: row.series || null,
-            awards: row.awards || null,
-            characters: row.characters || null,
+            awards: parseArrayField(row.awards),
+            characters: parseArrayField(row.characters),
             setting: row.setting || null
           }
         };

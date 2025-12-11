@@ -82,9 +82,30 @@ const getAllUsers = async (req, res, next) => {
   }
 }
 
+const updatePersona = async (req, res, next) => {
+  try {
+    const userId = req.user.id // Get from token
+    const { persona } = req.body
+
+    console.log(`📥 Updating persona for user ${userId}:`, persona)
+
+    const updatedUser = await userService.updateUserPersona(userId, persona)
+    if (!updatedUser) {
+      return sendError(res, 'Người dùng không tồn tại', 404)
+    }
+
+    const responseData = UserDTO.toResponse(updatedUser)
+    return sendSuccess(res, responseData, 'Cập nhật sở thích thành công')
+  } catch (error) {
+    console.error('❌ Lỗi cập nhật persona:', error)
+    return sendError(res, 'Cập nhật sở thích thất bại', 500, { message: error.message })
+  }
+}
+
 export const userController = {
   createUser,
   getUser,
   updateUser,
-  getAllUsers
+  getAllUsers,
+  updatePersona
 }

@@ -6,11 +6,13 @@
 import User from '../../models/User.js';
 import Order from '../../models/Order.js';
 import Book from '../../models/Book.js';
+import Comment from '../../models/Comment.js';
 import bcrypt from 'bcryptjs';
 
 // Configuration
 const TOTAL_USERS = 50;
 const TOTAL_ORDERS = 150;
+const TOTAL_COMMENTS = 200;
 const DEFAULT_PASSWORD = '123456';
 
 // Vietnamese data
@@ -28,6 +30,39 @@ const VIETNAMESE_FIRST_NAMES = [
 const VIETNAMESE_LAST_NAMES = [
   'An', 'Bình', 'Chi', 'Dũng', 'Em', 'Giang', 'Hải', 'Khoa', 'Linh', 'Minh',
   'Nam', 'Oanh', 'Phương', 'Quân', 'Sơn', 'Thảo', 'Uyên', 'Văn', 'Xuân', 'Yến'
+];
+
+const COMMENT_TEMPLATES = [
+  'Sách rất hay, nội dung súc tích và dễ hiểu!',
+  'Cuốn sách tuyệt vời, mình rất thích!',
+  'Đóng gói cẩn thận, giao hàng nhanh. Sách chất lượng tốt.',
+  'Nội dung sách rất bổ ích, đáng đọc!',
+  'Sách hay nhưng giá hơi cao một chút.',
+  'Chất lượng sách tốt, đúng như mô tả.',
+  'Rất hài lòng với sản phẩm này!',
+  'Giao hàng nhanh, sách còn mới toanh.',
+  'Nội dung sâu sắc, rất đáng để suy ngẫm.',
+  'Mình đã đọc xong và rất thích!',
+  'Sách viết hay, văn phong dễ đọc.',
+  'Giá cả hợp lý, chất lượng tốt.',
+  'Shop đóng gói cẩn thận, sách không bị hư hỏng.',
+  'Nội dung phong phú, nhiều kiến thức mới.',
+  'Đọc xong cảm thấy học được nhiều thứ.',
+  'Sách đẹp, in ấn rõ ràng.',
+  'Rất đáng để mua và đọc!',
+  'Nội dung hấp dẫn, khó đặt sách xuống.',
+  'Giao hàng đúng hẹn, sản phẩm đẹp.',
+  'Sách hay, giá tốt. Sẽ ủng hộ shop tiếp!',
+  'Chất lượng giấy in tốt, đọc dễ chịu.',
+  'Nội dung như kỳ vọng, rất hài lòng.',
+  'Mình rất thích phong cách viết của tác giả.',
+  'Sách đến tay còn nguyên vẹn, đẹp.',
+  'Đọc sách này giúp mình hiểu thêm nhiều điều.',
+  'Rất đáng tiền, sẽ mua thêm các đầu sách khác.',
+  'Nội dung chất lượng, trình bày đẹp mắt.',
+  'Shop phục vụ tốt, giao hàng nhanh.',
+  'Sách hay, đọc rất cuốn.',
+  'Giá hợp lý so với chất lượng sách.'
 ];
 
 // Helper functions
@@ -195,6 +230,80 @@ const generateFakeOrders = async (availableUsers, availableProducts) => {
   }
 };
 
+// Generate fake comments
+const generateFakeComments = async (availableUsers, availableBooks) => {
+  try {
+    const comments = [];
+    
+    for (let i = 0; i < TOTAL_COMMENTS; i++) {
+      const user = availableUsers[Math.floor(Math.random() * availableUsers.length)];
+      const book = availableBooks[Math.floor(Math.random() * availableBooks.length)];
+      
+      // Rating distribution: more 4-5 stars, fewer 1-2 stars
+      const ratingWeights = [
+        { weight: 5, value: 1 },
+        { weight: 8, value: 2 },
+        { weight: 15, value: 3 },
+        { weight: 35, value: 4 },
+        { weight: 37, value: 5 }
+      ];
+      
+      const totalWeight = ratingWeights.reduce((sum, item) => sum + item.weight, 0);
+      const random = Math.random() * totalWeight;
+      let cumulativeWeight = 0;
+      let rating = 5;
+      
+      for (const item of ratingWeights) {
+        cumulativeWeight += item.weight;
+        if (random <= cumulativeWeight) {
+          rating = item.value;
+          break;
+        }
+      }
+      
+      // Select appropriate comment based on rating
+      let commentText;
+      if (rating >= 4) {
+        // Positive comments for high ratings
+        const positiveComments = COMMENT_TEMPLATES.filter((c, idx) => idx < 25);
+        commentText = positiveComments[Math.floor(Math.random() * positiveComments.length)];
+      } else if (rating === 3) {
+        // Neutral comments
+        commentText = 'Sách ổn, nội dung tạm được.';
+      } else {
+        // Negative/mixed comments for low ratings
+        const negativeComments = [
+          'Sách không hay như mong đợi.',
+          'Nội dung hơi nhàm chán.',
+          'Giá hơi cao so với chất lượng.',
+          'Không phù hợp với mình lắm.'
+        ];
+        commentText = negativeComments[Math.floor(Math.random() * negativeComments.length)];
+      }
+      
+      const commentDate = generateRandomDate();
+      
+      const commentData = {
+        book_id: book._id,
+        user_id: user._id,
+        rating: rating,
+        comment: commentText,
+        isDisabled: false,
+        createdAt: commentDate,
+        updatedAt: commentDate
+      };
+      
+      comments.push(commentData);
+    }
+    
+    await Comment.insertMany(comments);
+    return comments;
+    
+  } catch (error) {
+    throw new Error(`Failed to generate fake comments: ${error.message}`);
+  }
+};
+
 // Main controller functions
 export const generateFakeData = async (req, res) => {
   try {
@@ -228,6 +337,9 @@ export const generateFakeData = async (req, res) => {
     // Generate fake orders
     const newOrders = await generateFakeOrders(allUsers, availableProducts);
 
+    // Generate fake comments
+    const newComments = await generateFakeComments(allUsers, availableProducts);
+
     // Generate statistics
     const stats = await generateStatistics();
 
@@ -237,6 +349,7 @@ export const generateFakeData = async (req, res) => {
       data: {
         usersGenerated: newUsers.length,
         ordersGenerated: newOrders.length,
+        commentsGenerated: newComments.length,
         statistics: stats
       }
     });
@@ -289,12 +402,24 @@ export const cleanupFakeData = async (req, res) => {
     // Delete all orders (or you can be more specific)
     const deletedOrders = await Order.deleteMany({});
 
+    // Delete all comments from deleted test users
+    const testUserIds = await User.find({
+      role: 'user',
+      email: { $regex: /(demo\.com|test\.com|testuser)/ }
+    }).select('_id');
+    
+    const testUserIdArray = testUserIds.map(u => u._id);
+    const deletedComments = await Comment.deleteMany({
+      user_id: { $in: testUserIdArray }
+    });
+
     res.json({
       success: true,
       message: 'Fake data cleaned up successfully',
       data: {
         usersDeleted: deletedUsers.deletedCount,
-        ordersDeleted: deletedOrders.deletedCount
+        ordersDeleted: deletedOrders.deletedCount,
+        commentsDeleted: deletedComments.deletedCount
       }
     });
 
@@ -332,6 +457,19 @@ const generateStatistics = async () => {
     { $group: { _id: null, avgValue: { $avg: '$total_price' } } }
   ]);
 
+  // Comments statistics
+  const totalComments = await Comment.countDocuments({ isDisabled: false });
+  const avgRating = await Comment.aggregate([
+    { $match: { isDisabled: false } },
+    { $group: { _id: null, avgRating: { $avg: '$rating' } } }
+  ]);
+  
+  const ratingDistribution = await Comment.aggregate([
+    { $match: { isDisabled: false } },
+    { $group: { _id: '$rating', count: { $sum: 1 } } },
+    { $sort: { _id: 1 } }
+  ]);
+
   return {
     users: {
       total: totalUsers,
@@ -342,6 +480,11 @@ const generateStatistics = async () => {
       byPaymentType: paymentCounts,
       totalRevenue: totalRevenue.length > 0 ? totalRevenue[0].totalRevenue : 0,
       averageValue: avgOrderValue.length > 0 ? Math.round(avgOrderValue[0].avgValue) : 0
+    },
+    comments: {
+      total: totalComments,
+      averageRating: avgRating.length > 0 ? avgRating[0].avgRating.toFixed(2) : 0,
+      byRating: ratingDistribution
     }
   };
 };

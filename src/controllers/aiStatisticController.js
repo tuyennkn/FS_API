@@ -664,6 +664,7 @@ HÃY PHÂN TÍCH SÂU:
 5. Chiến lược giá: Làm thế nào để optimize pricing?
 
 QUAN TRỌNG: Trả về JSON format chính xác (không markdown), tất cả value phải là STRING:
+CẤM TUYỆT ĐỐI: Không dùng gạch đầu dòng (-), không dùng dấu sao (*), không dùng in đậm (**), không xuống dòng (\\n) bên trong value.
 {
   "summary": "Tóm tắt chính về xu hướng thị trường và khách hàng",
   "customerInsights": "Phân tích chi tiết về tâm lý khách hàng - tại sao họ chọn những sách này?",

@@ -111,10 +111,26 @@ const getAllUsers = async (page = 1, limit = 10, search = '') => {
     }
 }
 
+const updateUserPersona = async (userId, persona) => {
+    try {
+        const user = await User.findById(userId)
+        if (!user) {
+            return null
+        }
+        user.persona = persona
+        await user.save()
+        return user
+    } catch (error) {
+        console.error('Error updating user persona:', error)
+        throw error
+    }
+}
+
 export const userService = {
     createUser,
     getUserById,
     updateUser,
     updateUserByAdmin,
-    getAllUsers
+    getAllUsers,
+    updateUserPersona
 }

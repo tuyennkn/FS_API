@@ -22,40 +22,46 @@ export const handleCategoryForBook = async (bookData) => {
             return null
         }
 
+        // Lấy danh sách category hiện có
+        const allCategories = await Category.find({}, 'name')
+
         // Bước 1: gọi AI để phân tích genre và suy ra category
         let aiAnalysis
         try {
-            const analysisResult = await analyzeCategoryFromGenre(genre, title, author)
+            const analysisResult = await analyzeCategoryFromGenre(genre, title, author, allCategories)
             // Parse JSON response từ AI
             const cleanedResult = analysisResult.replace(/```json|```/g, '').trim()
             aiAnalysis = JSON.parse(cleanedResult)
         } catch (aiError) {
             console.error('AI Analysis failed, using fallback:', aiError)
             aiAnalysis = {
+                isNew: true,
                 name: genre,
                 description: `Category for ${genre} books`
             }
         }
 
-        // Tìm category đã tồn tại (case insensitive)
-        const existingCategory = await Category.findOne({
-            name: { $regex: new RegExp(`^${aiAnalysis.name}$`, 'i') },
-            // isDisable: false
-        })
-
-        if (existingCategory) {
-            console.log(`Found matching category: ${existingCategory.name} for genre: ${genre}`)
-            return existingCategory
+        // Nếu AI chọn category có sẵn
+        if (!aiAnalysis.isNew) {
+            const existingCategory = allCategories.find(c => 
+                c.name.toLowerCase() === aiAnalysis.name.toLowerCase()
+            )
+            
+            if (existingCategory) {
+                console.log(`AI matched existing category: ${existingCategory.name} for genre: ${genre}`)
+                return existingCategory
+            }
         }
 
-        // Bước 2: Không tìm thấy category khớp -> tạo pending category
+        // Bước 2: AI đề xuất mới hoặc không tìm thấy -> tạo pending category
         await createPendingCategoryFromGenre({
             book_id,
             genre,
             title,
             author,
             image,
-            ...aiAnalysis
+            name: aiAnalysis.name,
+            description: aiAnalysis.description
         })
 
         console.log(`Created pending category for book: ${title} with genre: ${genre}`)

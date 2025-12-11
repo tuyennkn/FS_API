@@ -83,6 +83,16 @@ export const importBooksFromCSV = async (req, res) => {
     // Read and parse CSV file
     const csvStream = fs.createReadStream(csvFilePath)
       .pipe(csv({
+        strict: false, // Allow flexible parsing
+        skipLines: 0,
+        // Disable automatic type conversion to preserve ISBN as string
+        mapValues: ({ header, index, value }) => {
+          // Keep ISBN as string to prevent precision loss
+          if (header === 'isbn' && value) {
+            return String(value).trim();
+          }
+          return value;
+        },
         mapHeaders: ({ header }) => {
           // Map CSV headers to our field names based on the actual CSV format
           const headerMap = {
@@ -179,7 +189,7 @@ export const importBooksFromCSV = async (req, res) => {
 
           // Map to attributes object for additional fields
           attributes: {
-            isbn: row.isbn || null,
+            isbn: row.isbn ? String(row.isbn).trim() : null, // Ensure ISBN is string
             pages: row.pages ? parseInt(row.pages) : null,
             language: row.language || null,
             edition: row.edition || null,

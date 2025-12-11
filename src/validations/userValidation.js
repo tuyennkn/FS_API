@@ -43,6 +43,38 @@ export const validateUpdateUser = (req, res, next) => {
             'string.base': 'Giới tính phải là chuỗi',
             'any.only': 'Giới tính phải là "male", "female" hoặc "other"', 
         }),
+        persona: Joi.string().allow('').optional().messages({
+            'string.base': 'Persona phải là chuỗi',
+        }),
+    });
+
+    try {
+        const { error } = schema.validate(req.body, { abortEarly: false });
+        if (error) {
+            const errorMessages = error.details.map(detail => detail.message);
+            return res.status(400).json({
+                status: 'error',
+                message: 'Dữ liệu không hợp lệ',
+                errors: errorMessages
+            });
+        }
+        next();
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({
+            status: 'error',
+            message: 'Đã xảy ra lỗi',
+        });
+    }
+}
+
+export const validateUpdatePersona = (req, res, next) => {
+    const schema = Joi.object({
+        persona: Joi.string().required().messages({
+            'string.base': 'Persona phải là chuỗi',
+            'string.empty': 'Persona không được để trống',
+            'any.required': 'Persona là bắt buộc'
+        }),
     });
 
     try {

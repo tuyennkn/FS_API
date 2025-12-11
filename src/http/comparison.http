@@ -1,0 +1,79 @@
+### Product Comparison API Tests
+@baseUrl = http://localhost:8080/router
+@bookUrl = {{baseUrl}}/book
+@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YmRjMTg5YzIwNTZkZmFhMDliOTQxYiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1NzMxMzAxNCwiZXhwIjoxNzU3MzEzOTE0fQ.OvYxDw4qkuSDv2jBTguIHcH3WPBHRxuCEy5xFmFgvno
+
+# Test 1: Compare 2 products without query (should return options)
+POST {{baseUrl}}/book/compare
+Content-Type: application/json
+
+{
+  "productIds": ["676c744d9bad5712b5f88f45", "676c744d9bad5712b5f88f46"]
+}
+
+###
+
+# Test 2: Compare with query
+POST {{baseUrl}}/book/compare
+Content-Type: application/json
+
+{
+  "productIds": ["676c744d9bad5712b5f88f45", "676c744d9bad5712b5f88f46"],
+  "query": "Sách nào phù hợp cho người mới bắt đầu học lập trình?"
+}
+
+###
+
+# Test 3: Compare with selected options
+POST {{baseUrl}}/book/compare
+Content-Type: application/json
+
+{
+  "productIds": ["676c744d9bad5712b5f88f45", "676c744d9bad5712b5f88f46"],
+  "selectedOptions": ["So sánh về giá cả", "Độ khó và thời gian đọc"]
+}
+
+###
+
+# Test 4: Compare 3 products
+POST {{baseUrl}}/book/compare
+Content-Type: application/json
+
+{
+  "productIds": ["676c744d9bad5712b5f88f45", "676c744d9bad5712b5f88f46", "676c744d9bad5712b5f88f47"],
+  "query": "Sách văn học nào hay nhất?"
+}
+
+###
+
+# Test 5: Error - Only 1 product
+POST {{baseUrl}}/book/compare
+Content-Type: application/json
+
+{
+  "productIds": ["676c744d9bad5712b5f88f45"]
+}
+
+###
+
+# Test 6: Error - Too many products
+POST {{baseUrl}}/book/compare
+Content-Type: application/json
+
+{
+  "productIds": ["id1", "id2", "id3", "id4", "id5", "id6"]
+}
+
+###
+
+# Test 7: With authentication (to get user persona)
+POST {{baseUrl}}/book/compare
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "productIds": ["676c744d9bad5712b5f88f45", "676c744d9bad5712b5f88f46"],
+  "query": "Sách nào phù hợp với tôi?"
+}
+
+###

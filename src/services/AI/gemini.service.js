@@ -64,9 +64,9 @@ Câu truy vấn: "${query}"
 `;
 
   const result = await model.generateContent(prompt);
-// result.response.text trả về string json```json
-// {"isMeaningless": false, "simplifiedQuery": "Sách trinh thám"}
-// ```
+  // result.response.text trả về string json```json
+  // {"isMeaningless": false, "simplifiedQuery": "Sách trinh thám"}
+  // ```
   const output = result.response.text()
 
   // Loại bỏ các ký tự không cần thiết
@@ -76,13 +76,145 @@ Câu truy vấn: "${query}"
 }
 
 // Hàm phân tích category từ genre, title, description sách
-export async function analyzeCategoryFromGenre(genre, title, author) {
+export async function analyzeCategoryFromGenre(
+  genre,
+  title,
+  author,
+  existingCategories = []
+) {
+  const categoriesList = existingCategories.map(c => `"${c.name}"`).join(", ");
+
   const prompt = `
-  Bạn là trợ lý phân loại sách.
-  Phân tích thể loại sách từ thể loại: "${genre}", tiêu đề: "${title}", tác giả: "${author}".
-  Chỉ trả về duy nhất một tên thể loại phù hợp nhất và mô tả đề xuất cho thể loại đó, định dang json gồm 2 trường name, description. Không giải thích gì thêm.
-  `
-  const result = await model.generateContent(prompt);
-  const output = result.response.text()
-  return output
+  Bạn là hệ thống phân tích và phân loại sách ở mức rất khắt khe.
+
+  Danh sách thể loại hợp lệ: [${categoriesList}]
+
+  Nhiệm vụ: đánh giá xem cuốn sách sau đây có phù hợp với BẤT KỲ thể loại nào hay không:
+  - Thể loại gốc: "${genre}"
+  - Tiêu đề: "${title}"
+  - Tác giả: "${author}"
+
+  Bạn phải chấm điểm từng category theo các tiêu chí sau (tổng 100 điểm):
+  - Mức độ liên quan của nội dung: 40 điểm
+  - Tông giọng & phong cách: 20 điểm
+  - Người đọc mục tiêu: 20 điểm
+  - Chủ đề lớn: 20 điểm
+
+  Sau đó:
+  - Lấy category có điểm cao nhất.
+  - Nếu điểm < 60 → xem là KHÔNG PHÙ HỢP → bạn phải tạo category mới.
+  - Nếu điểm ≥ 60 → chọn category đó.
+
+  Trả về JSON hợp lệ:
+  {
+    "isNew": boolean,
+    "name": "Tên category hoặc category mới",
+    "description": "Lý do"
+  }
+  `;
+
+  const response = await model.generateContent(prompt);
+  const text = response.response.text();
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {
+      isNew: true,
+      name: `New Category: ${genre}`,
+      description: "Fallback JSON error"
+    };
+  }
+}
+
+/**
+ * Generate text using Gemini AI
+ * @param {string} prompt - The prompt to send to Gemini
+ * @returns {Promise<string>} - The generated text response
+ */
+export async function generateText(prompt) {
+  try {
+    const result = await model.generateContent(prompt);
+    const output = result.response.text();
+    return output;
+  } catch (error) {
+    console.error('Gemini AI error:', error);
+    throw new Error('Failed to generate AI response');
+  }
+}
+
+/**
+ * Đánh giá mức độ phù hợp của sách với persona người dùng
+ * @param {Object} book - Thông tin sách {title, description, price, genre}
+ * @param {string} userPersona - Persona của người dùng
+ * @returns {Promise<Object>} - {level: 'warning' | 'explore' | 'highly-recommend', reason: string}
+ */
+export async function evaluateBookForUser(book, userPersona) {
+  const prompt = `
+Bạn là hệ thống đánh giá và đề xuất sách thông minh.
+
+Thông tin sách:
+- Tiêu đề: "${book.title}"
+- Mô tả: "${book.description}"
+- Thể loại: "${book.genre}"
+- Giá: ${book.price} VND
+
+Persona người dùng:
+"${userPersona || 'Chưa có thông tin về sở thích người dùng'}"
+
+Nhiệm vụ: Đánh giá mức độ phù hợp của cuốn sách với người dùng và phân loại vào 1 trong 3 cấp độ:
+
+1. **warning**: Sách có chứa nội dung nhạy cảm hoặc không phù hợp với số đông
+   - Bạo lực, máu me, kinh dị
+   - Nội dung LGBT+, đồng tính
+   - Nội dung tình dục, 18+
+   - Chính trị, tôn giáo gây tranh cãi
+   - Ngôn ngữ thô tục
+   
+2. **explore**: Sách chứa nội dung MỚI MẺ mà người dùng CHƯA từng tiếp xúc
+   - Thể loại hoàn toàn khác với sở thích hiện tại
+   - Chủ đề mà persona chưa đề cập
+   - Có thể mở rộng chân trời đọc sách
+   - Đề xuất người dùng thử nghiệm
+   
+3. **highly-recommend**: Sách PHÙ HỢP VÀ ĐÚNG SỞ THÍCH của người dùng
+   - Khớp với thể loại yêu thích trong persona
+   - Nội dung liên quan đến sở thích đã biết
+   - Tác giả hoặc phong cách quen thuộc
+   - Chắc chắn người dùng sẽ thích
+
+Lưu ý:
+- Nếu không có persona, ưu tiên phân loại dựa vào nội dung sách
+- Reason phải ngắn gọn (2-3 câu), KHÔNG sử dụng emoji
+- Reason phải bằng tiếng Việt, dễ hiểu
+
+Trả về JSON hợp lệ:
+{
+  "level": "warning" | "explore" | "highly-recommend",
+  "reason": "Lý do bằng tiếng Việt"
+}
+`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const output = result.response.text();
+    
+    // Clean output
+    const cleanedOutput = output.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleanedOutput);
+    
+    // Validate response
+    if (!['warning', 'explore', 'highly-recommend'].includes(parsed.level)) {
+      throw new Error('Invalid level returned');
+    }
+    
+    return parsed;
+  } catch (error) {
+    console.error('Error evaluating book for user:', error);
+    // Fallback response
+    return {
+      level: 'explore',
+      reason: 'Không thể đánh giá mức độ phù hợp lúc này.'
+    };
+  }
 }

@@ -13,7 +13,7 @@ import { analyzeCategoryFromGenre } from './AI/gemini.service.js'
  * @param {Array} bookData.image - Ảnh sách
  * @returns {Object|null} - Category được assign hoặc null nếu tạo pending
  */
-export const handleCategoryForBook = async (bookData) => {
+export const handleCategoryForBook = async (bookData, allCategories) => {
     try {
         const { genre, _id: book_id, title, author, image } = bookData
 
@@ -22,16 +22,19 @@ export const handleCategoryForBook = async (bookData) => {
             return null
         }
 
-        // Lấy danh sách category hiện có
-        const allCategories = await Category.find({}, 'name')
-
         // Bước 1: gọi AI để phân tích genre và suy ra category
         let aiAnalysis
         try {
             const analysisResult = await analyzeCategoryFromGenre(genre, title, author, allCategories)
-            // Parse JSON response từ AI
-            const cleanedResult = analysisResult.replace(/```json|```/g, '').trim()
-            aiAnalysis = JSON.parse(cleanedResult)
+            // Xử lý kết quả trả về
+            if (typeof analysisResult === 'string') {
+                const cleanedResult = analysisResult.replace(/```json|```/g, '').trim()
+                aiAnalysis = JSON.parse(cleanedResult)
+            } else if (typeof analysisResult === 'object' && analysisResult !== null) {
+                aiAnalysis = analysisResult
+            } else {
+                throw new Error('Invalid AI response format')
+            }
         } catch (aiError) {
             console.error('AI Analysis failed, using fallback:', aiError)
             aiAnalysis = {

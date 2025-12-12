@@ -7,6 +7,54 @@ const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
 // Dùng model nhẹ để tiết kiệm quota
 const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' })
 
+/**
+ * Retry wrapper với exponential backoff
+ * @param {Function} fn - Hàm cần retry
+ * @param {number} maxRetries - Số lần retry tối đa
+ * @param {number} initialDelay - Delay ban đầu (ms)
+ * @returns {Promise} - Kết quả của hàm
+ */
+async function retryWithBackoff(fn, maxRetries = 3, initialDelay = 1000) {
+  let lastError;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      
+      // Kiểm tra nếu là lỗi rate limit (429) hoặc quota exceeded
+      const isRateLimitError = 
+        error?.status === 429 || 
+        error?.message?.includes('quota') ||
+        error?.message?.includes('rate limit') ||
+        error?.message?.includes('RESOURCE_EXHAUSTED');
+      
+      // Nếu không phải lỗi rate limit, throw ngay
+      if (!isRateLimitError) {
+        throw error;
+      }
+      
+      // Nếu đã hết retry, throw error
+      if (attempt === maxRetries) {
+        console.error(`Failed after ${maxRetries} retries:`, error.message);
+        throw error;
+      }
+      
+      // Tính thời gian delay với exponential backoff
+      const delay = initialDelay * Math.pow(2, attempt);
+      const jitter = Math.random() * 1000; // Thêm random jitter để tránh thundering herd
+      const totalDelay = delay + jitter;
+      
+      console.log(`Rate limit hit, retrying in ${Math.round(totalDelay)}ms (attempt ${attempt + 1}/${maxRetries})...`);
+      
+      await new Promise(resolve => setTimeout(resolve, totalDelay));
+    }
+  }
+  
+  throw lastError;
+}
+
 // Hàm kiểm tra text
 export async function moderateText(text) {
   const prompt = `
@@ -105,26 +153,23 @@ export async function analyzeCategoryFromGenre(
   - Nếu điểm < 60 → xem là KHÔNG PHÙ HỢP → bạn phải tạo category mới.
   - Nếu điểm ≥ 60 → chọn category đó.
 
-  Trả về JSON hợp lệ:
+  QUAN TRỌNG: Chỉ trả về JSON hợp lệ theo định dạng sau, không thêm gì khác:
   {
     "isNew": boolean,
     "name": "Tên category hoặc category mới",
-    "description": "Lý do"
+    "description": "Mô tả ngắn về category, không phải mô tả sách"
   }
   `;
 
-  const response = await model.generateContent(prompt);
-  const text = response.response.text();
+  // Sử dụng retry với backoff để xử lý rate limit
+  const text = await retryWithBackoff(async () => {
+    const response = await model.generateContent(prompt);
+    return response.response.text();
+  }, 3, 2000); // 3 retries, bắt đầu với 2s delay
 
-  try {
-    return JSON.parse(text);
-  } catch {
-    return {
-      isNew: true,
-      name: `New Category: ${genre}`,
-      description: "Fallback JSON error"
-    };
-  }
+  console.log('analyzeCategoryFromGenre output:', text);
+
+  return text;
 }
 
 /**

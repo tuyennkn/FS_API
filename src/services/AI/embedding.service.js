@@ -1,5 +1,3 @@
-
-
 const axios = require("axios");
 
 const BASE_URL = process.env.EMBEDDING_API_URL || "http://localhost:8000";

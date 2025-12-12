@@ -6,6 +6,7 @@ import path from 'path';
 import { generateEmbedding } from '../services/AI/embedding.service.js';
 import { embeddingTextGenerator } from '../utils/algorithms.js';
 import { handleCategoryForBook } from '../services/categoryAnalysis.service.js';
+import Category from '~/models/Category.js';
 
 // Configure multer for CSV file upload
 const storage = multer.diskStorage({
@@ -128,7 +129,7 @@ export const importBooksFromCSV = async (req, res) => {
 
     csvStream.on('data', (row) => {
       rowIndex++;
-      
+
       try {
         // Parse publish date
         let publishDate = null;
@@ -236,10 +237,16 @@ export const importBooksFromCSV = async (req, res) => {
         // Process books: generate embeddings and handle categories
         const processedBooks = [];
         const batchSize = 10; // Process in small batches to avoid memory issues
+        
+        // Get all categories once to avoid repeated DB queries
+        const allCategories = await Category.find({}, 'name');
+        
+        // Cache AI analysis results by genre to avoid duplicate API calls
+        const genreCategoryCache = new Map();
 
         for (let i = 0; i < books.length; i += batchSize) {
           const batch = books.slice(i, i + batchSize);
-          
+
           for (const bookData of batch) {
             try {
               // Generate embedding for the book
@@ -253,17 +260,31 @@ export const importBooksFromCSV = async (req, res) => {
               // Create the book
               const book = new Book(bookData);
               await book.save();
-              
+
               // Handle category assignment or create pending category
               if (bookData.genre && !bookData.category) {
                 try {
-                  const matchedCategory = await handleCategoryForBook({
-                    genre: bookData.genre,
-                    _id: book._id,
-                    title: book.title,
-                    author: book.author,
-                    image: book.image
-                  });
+                  const genreKey = bookData.genre.toLowerCase().trim();
+                  
+                  // Check cache first to avoid calling AI for same genre
+                  let matchedCategory = genreCategoryCache.get(genreKey);
+                  
+                  if (matchedCategory === undefined) {
+                    // Not in cache, call AI service with delay
+                    matchedCategory = await handleCategoryForBook({
+                      genre: bookData.genre,
+                      _id: book._id,
+                      title: book.title,
+                      author: book.author,
+                      image: book.image
+                    }, allCategories);
+                    
+                    // Cache the result (even if null)
+                    genreCategoryCache.set(genreKey, matchedCategory);
+                    
+                    // Add delay to avoid rate limiting (500ms between AI calls)
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                  }
 
                   if (matchedCategory) {
                     book.category = matchedCategory._id;
@@ -302,13 +323,13 @@ export const importBooksFromCSV = async (req, res) => {
 
       } catch (dbError) {
         console.error('Database insertion error:', dbError);
-        
+
         // Handle duplicate key errors
         if (dbError.code === 11000) {
-          const duplicateErrors = dbError.writeErrors?.map(err => 
+          const duplicateErrors = dbError.writeErrors?.map(err =>
             `Duplicate book found: ${err.err.op.title}`
           ) || ['Some books already exist'];
-          
+
           return res.status(400).json({
             success: false,
             message: 'Some books could not be imported due to duplicates',
@@ -342,7 +363,7 @@ export const importBooksFromCSV = async (req, res) => {
 
   } catch (error) {
     console.error('CSV import error:', error);
-    
+
     // Clean up uploaded file if it exists
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);

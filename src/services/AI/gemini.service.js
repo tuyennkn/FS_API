@@ -232,6 +232,7 @@ Lưu ý:
 - Nếu không có persona, ưu tiên phân loại dựa vào nội dung sách
 - Reason phải ngắn gọn (2-3 câu), KHÔNG sử dụng emoji
 - Reason phải bằng tiếng Việt, dễ hiểu
+- Xưng hô bạn với người dùng
 
 Trả về JSON hợp lệ:
 {

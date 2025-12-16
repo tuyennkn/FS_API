@@ -24,8 +24,6 @@ export async function processSearchConversation(userQuery, conversationHistory =
     // Ask AI to analyze if we have enough info to search
     const analysisPrompt = `
 Bạn là trợ lý tìm kiếm sách thông minh.
-
-${userPersona ? `HỒ SƠ NGƯỜI DÙNG:\n${userPersona}\n` : ''}
 ${contextSummary ? `NGỮ CẢNH CUỘC TRÒ CHUYỆN:\n${contextSummary}\n` : ''}
 NGƯỜI DÙNG VỪA NÓI: "${userQuery}"
 
@@ -46,6 +44,7 @@ DẤU HIỆU MUỐN TÌM NGAY (needsClarification = FALSE):
 → ACTION: Tạo query tìm kiếm dựa trên info hiện có
 
 CHỈ HỎI KHI (needsClarification = TRUE):
+- Câu thoại đầu tiên của người dùng có mục đích giao tiếp
 - Người dùng thật sự bối rối: "tôi không biết", "gợi ý gì cho tôi?"
 - Câu hỏi mở không có action: "bạn nghĩ sao?", "nên thế nào?"
 - Yêu cầu tư vấn: "tôi nên chọn gì?"
@@ -100,7 +99,7 @@ TRẢ VỀ JSON (không thêm markdown):
 {
   "needsClarification": true/false,
   "question": "Câu hỏi (nếu cần, max 80 chữ)",
-  "simplifiedQuery": "Query tìm kiếm (nếu không cần hỏi)",
+  "simplifiedQuery": "Query tìm kiếm mà người dùng vừa nói nếu không cần hỏi thêm, ngược lại có ngữ cảnh trò chuyện thì tóm tắt ngữ cảnh đó thành query tìm kiếm",
   "reason": "Lý do"
 }
 `;

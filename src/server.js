@@ -6,47 +6,58 @@
 /* eslint-disable */
 
 import express from 'express'
-import {env} from '~/config/environment'
-import {CONNECT_DB, GET_DB, CLOSE_DB} from '~/config/mongoose'
+import { CONNECT_DB, CLOSE_DB } from '~/config/mongoose'
 import exitHook from 'async-exit-hook'
 import cors from 'cors'
-import mongoose from 'mongoose'
 import indexRouter from './routes/indexRouter.js'
-import { generateEmbedding, generateBatchEmbeddings } from './services/AI/embedding.service.js'
 
-
+// ======================
+// START SERVER FUNCTION
+// ======================
 const START_SERVER = () => {
   const app = express()
+
+  // Enable CORS
   app.use(cors())
-  
-  // Increase payload size limits for file uploads and large data imports
+
+  // Increase payload size limits
   app.use(express.json({ limit: '50mb' }))
   app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
-  const hostname = 'localhost'
-  const port = 8080
-
-
-
+  // ======================
+  // ROUTES
+  // ======================
   app.use('/router', indexRouter)
-  
+
+  // Static files
   app.use(express.static('public'))
 
-  app.listen(port, hostname, () => {
-    console.log(`Hello ${port} Dev, I am running at ${ hostname }:${ port }`)
+  // ======================
+  // START LISTENING
+  // ======================
+  const PORT = 8080
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server is running at http://0.0.0.0:${PORT}`)
   })
 
+  // ======================
+  // GRACEFUL SHUTDOWN
+  // ======================
   exitHook(() => {
-    console.log('chuẩn bị đóng database')
+    console.log('⏳ Closing database connection...')
     CLOSE_DB()
-    console.log('Đã đóng database')
+    console.log('✅ Database connection closed')
   })
 }
-//dạng Anonymuous Function(IIFE): function ẩn danh và chạy liền
-(async() => {
+
+// ======================
+// BOOTSTRAP APPLICATION
+// ======================
+;(async () => {
   try {
     await CONNECT_DB()
-    console.log('ket noi thanh cong toi MongoDB cua Atlas')
+    console.log('✅ Connected to MongoDB Atlas')
 
     // Cleanup stuck AI reports after database connection
     const { cleanupStuckReports } = await import('./controllers/aiStatisticController.js')
@@ -54,15 +65,7 @@ const START_SERVER = () => {
 
     START_SERVER()
   } catch (error) {
-    console.error(error)
-    process.exit()
+    console.error('❌ Failed to start server:', error)
+    process.exit(1)
   }
 })()
-
-// CONNECT_DB()
-//   .then( () => console.log('ket noi thanh cong toi MongoDB cua Atlas'))
-//   .then( () => START_SERVER())
-//   .catch(error => {
-//     console.error(error)
-//     process.exit()
-//   })

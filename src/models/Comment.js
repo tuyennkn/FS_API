@@ -5,6 +5,7 @@ const commentSchema = new mongoose.Schema({
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'users', required: true },
   rating: { type: Number, min: 1, max: 5 },
   comment: { type: String },
+  embedding: { type: [Number], default: null }, // Vector embedding của comment
   isDisabled: { type: Boolean, default: false }
 }, { timestamps: true })
 

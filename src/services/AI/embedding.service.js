@@ -1,32 +1,52 @@
-const axios = require("axios");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const BASE_URL = process.env.EMBEDDING_API_URL || "http://localhost:8000";
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-export async function generateEmbedding(text) {
+const OUTPUT_DIM = 1024;
+
+const model = genAI.getGenerativeModel({
+    model: "gemini-embedding-001"
+});
+
+async function generateEmbedding(text) {
     try {
-        const response = await axios.post(`${BASE_URL}/embed`, {
-            text: text,
-        }, {
-            headers: { "Content-Type": "application/json" }
+        const result = await model.embedContent({
+            content: {
+                parts: [{ text }]
+            },
+            outputDimensionality: OUTPUT_DIM
         });
 
-        return response.data.embedding;
+        return result.embedding.values;
     } catch (error) {
-        console.error("Error generating embedding:", error.message);
+        console.error("Error generating embedding:", error);
         throw new Error("Failed to generate embedding");
     }
 }
 
-export async function generateBatchEmbeddings(texts) {
+async function generateBatchEmbeddings(texts) {
     try {
-        const response = await axios.post(`${BASE_URL}/batch_embed`, {
-            texts: texts,
-        }, {
-            headers: { "Content-Type": "application/json" }
-        });
-        return response.data.map(item => item.embedding);
+        const embeddings = [];
+
+        for (const text of texts) {
+            const result = await model.embedContent({
+                content: {
+                    parts: [{ text }]
+                },
+                outputDimensionality: OUTPUT_DIM
+            });
+
+            embeddings.push(result.embedding.values);
+        }
+
+        return embeddings;
     } catch (error) {
-        console.error("Error generating batch embeddings:", error.message);
+        console.error("Error generating batch embeddings:", error);
         throw new Error("Failed to generate batch embeddings");
     }
 }
+
+module.exports = {
+    generateEmbedding,
+    generateBatchEmbeddings,
+};

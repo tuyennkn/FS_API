@@ -1,4 +1,155 @@
 import { generateText } from './gemini.service.js';
+import { generateEmbedding } from './embedding.service.js';
+import Comment from '../../models/Comment.js';
+
+/**
+ * Retrieve relevant comments for products using semantic search (RAG - Retrieval Augmented Generation)
+ * @param {Array} productIds - Array of product IDs to retrieve comments for
+ * @param {String} query - User's comparison query for semantic search
+ * @param {Array} products - Array of products (for fallback embedding generation)
+ * @param {Number} limit - Maximum number of comments per product
+ * @returns {Object} Comments grouped by product ID
+ */
+async function retrieveRelevantComments(productIds, query = '', products = [], limit = 5) {
+  try {
+    const commentsMap = {};
+
+    // Generate query embedding for semantic search
+    let queryEmbedding = null;
+    
+    if (query) {
+      // Use user's query for semantic search
+      try {
+        queryEmbedding = await generateEmbedding(query);
+      } catch (error) {
+        console.error('Error generating query embedding:', error);
+      }
+    }
+
+    for (const productId of productIds) {
+      let comments = [];
+
+      if (queryEmbedding) {
+        // Use MongoDB Atlas Vector Search for semantic retrieval
+        try {
+          comments = await Comment.aggregate([
+            {
+              $vectorSearch: {
+                index: 'default', // Tên index bạn đã tạo trong Atlas
+                path: 'embedding',
+                queryVector: queryEmbedding,
+                numCandidates: 50, // Số candidates để search
+                limit: limit,
+                filter: {
+                  book_id: productId,
+                  isDisabled: false,
+                  comment: { $exists: true, $ne: '' }
+                }
+              }
+            },
+            {
+              $addFields: {
+                score: { $meta: 'vectorSearchScore' } // Thêm similarity score
+              }
+            },
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'user_id',
+                foreignField: '_id',
+                as: 'user'
+              }
+            },
+            {
+              $unwind: {
+                path: '$user',
+                preserveNullAndEmptyArrays: true
+              }
+            },
+            {
+              $project: {
+                rating: 1,
+                comment: 1,
+                userName: { $ifNull: ['$user.name', 'Anonymous'] },
+                createdAt: 1,
+                score: 1
+              }
+            }
+          ]);
+
+          console.log(`Found ${comments.length} semantically relevant comments for product ${productId}`);
+        } catch (vectorError) {
+          console.error('Vector search error, falling back to regular search:', vectorError);
+          // Fallback to regular search if vector search fails
+          queryEmbedding = null;
+        }
+      }
+
+      // Fallback: Regular search by rating if no query or vector search failed
+      if (!queryEmbedding || comments.length === 0) {
+        comments = await Comment.find({ 
+          book_id: productId,
+          isDisabled: false,
+          comment: { $exists: true, $ne: '' }
+        })
+          .sort({ rating: -1, createdAt: -1 })
+          .limit(limit)
+          .populate('user_id', 'name')
+          .lean();
+
+        comments = comments.map(c => ({
+          rating: c.rating,
+          comment: c.comment,
+          userName: c.user_id?.name || 'Anonymous',
+          createdAt: c.createdAt,
+          score: null // No semantic score for regular search
+        }));
+      }
+
+      commentsMap[productId.toString()] = comments.map(c => ({
+        rating: c.rating,
+        comment: c.comment,
+        userName: c.userName,
+        date: c.createdAt,
+        relevanceScore: c.score ? c.score.toFixed(3) : null
+      }));
+    }
+
+    return commentsMap;
+  } catch (error) {
+    console.error('Error retrieving comments for RAG:', error);
+    return {};
+  }
+}
+
+/**
+ * Format comments for AI prompt
+ * @param {Object} commentsMap - Comments grouped by product ID
+ * @param {Array} products - Array of products
+ * @param {Boolean} hasSemanticSearch - Whether semantic search was used
+ * @returns {String} Formatted comment text
+ */
+function formatCommentsForPrompt(commentsMap, products, hasSemanticSearch = false) {
+  let formatted = '\n━━━ ĐÁNH GIÁ TỪ NGƯỜI DÙNG (RAG Context';
+  formatted += hasSemanticSearch ? ' - Semantic Search' : '';
+  formatted += ') ━━━\n';
+
+  products.forEach((product, index) => {
+    const productComments = commentsMap[product._id?.toString()] || [];
+    
+    if (productComments.length > 0) {
+      formatted += `\nSách ${index + 1} - "${product.title}":\n`;
+      productComments.forEach((c, i) => {
+        const scoreText = c.relevanceScore ? ` (Relevance: ${c.relevanceScore})` : '';
+        formatted += `  ${i + 1}. [${c.rating}⭐]${scoreText} ${c.userName}: "${c.comment}"\n`;
+      });
+    } else {
+      formatted += `\nSách ${index + 1} - "${product.title}": Chưa có đánh giá\n`;
+    }
+  });
+
+  return formatted;
+}
 
 /**
  * Compare products using AI with optional user persona and comparison criteria
@@ -39,7 +190,7 @@ ${products.map((p, i) => `
 Sách ${i + 1}: "${p.title}"
 - Tác giả: ${p.author}
 - Thể loại: ${p.genre || 'N/A'}
-- Giá: ${p.price.toLocaleString('vi-VN')}đ
+- Giá: ${p.price}$
 - Mô tả: ${p.description?.substring(0, 200) || 'N/A'}...
 `).join('\n')}
 
@@ -84,7 +235,13 @@ Trả về ĐÚNG FORMAT JSON sau (không thêm markdown, không thêm text khá
       };
     }
 
-    // Step 2: Perform actual comparison
+    // Step 2: Retrieve relevant comments for RAG using semantic search
+    const productIds = products.map(p => p._id).filter(Boolean);
+    const commentsMap = await retrieveRelevantComments(productIds, query, products, 5);
+    const hasSemanticSearch = query && query.trim().length > 0;
+    const commentsContext = formatCommentsForPrompt(commentsMap, products, hasSemanticSearch);
+
+    // Step 3: Perform actual comparison with RAG context
     const comparisonPrompt = `
 Bạn là chuyên gia tư vấn sách. Hãy so sánh các sách sau và đưa ra khuyến nghị:
 
@@ -97,6 +254,7 @@ Thể loại: ${p.genre || 'N/A'}
 Giá: ${p.price.toLocaleString('vi-VN')}đ
 Đánh giá: ${p.rating}/5 (${p.sold || 0} lượt bán)
 Mô tả: ${p.description || 'Không có mô tả'}
+${commentsContext}
 ${p.attributes?.publisher ? `Nhà xuất bản: ${p.attributes.publisher}` : ''}
 ${p.attributes?.pages ? `Số trang: ${p.attributes.pages}` : ''}
 ${p.attributes?.language ? `Ngôn ngữ: ${p.attributes.language}` : ''}
@@ -140,6 +298,8 @@ HÃY PHÂN TÍCH VÀ TRẢ VỀ ĐÚNG FORMAT JSON SAU (không thêm markdown, k
 
 LƯU Ý:
 - bookIndex là chỉ số (0, 1, 2...) của sách được đề xuất trong danh sách
+- SỬ DỤNG đánh giá từ người dùng thực tế (RAG Context) để đưa ra nhận định chính xác hơn
+- Trích dẫn ý kiến người dùng nếu có thông tin hữu ích
 - Phân tích dựa trên giá trị, nội dung, phù hợp với người đọc
 - Đưa ra lời khuyên thực tế và hữu ích
 - Nếu không có thông tin persona/query, hãy phân tích khách quan dựa trên thông tin sách

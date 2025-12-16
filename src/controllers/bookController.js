@@ -10,12 +10,13 @@ import { BookDTO } from "../dto/index.js";
 import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "../utils/constants.js";
 import { generateEmbedding } from "../services/AI/embedding.service.js";
 import { HTTP_STATUS } from "~/utils/httpStatus.js";
-import { simplifyQuery, evaluateBookForUser } from "~/services/AI/gemini.service.js";
+import { evaluateBookForUser } from "~/services/AI/gemini.service.js";
 import { updateUserPersona, buildInteractionContext } from "../services/AI/personaUpdater.service.js";
-import { processSearchConversation, createConversationTurn } from "../services/AI/conversationalSearch.service.js";
+import { analyzeSearchQuery, isMeaningfulQuery } from "../services/AI/queryAnalyzer.service.js";
 import { StatusCodes } from "http-status-codes";
 import { embeddingTextGenerator } from "~/utils/algorithms.js";
 import { handleCategoryForBook } from "../services/categoryAnalysis.service.js";
+import Category from "../models/Category.js";
 
 const createBook = async (req, res) => {
   try {
@@ -300,8 +301,8 @@ const summaryvectorBook = async (req, res) => {
 
 const searchBooks = async (req, res) => {
   try {
-    const { query, conversationHistory = [] } = req.body;
-    if (!query) {
+    const { query } = req.body;
+    if (!query || !query.trim()) {
       return sendError(
         res,
         "Search query is required",
@@ -309,93 +310,160 @@ const searchBooks = async (req, res) => {
       );
     }
 
-    // Get user persona if authenticated
-    const userId = req.user?.id;
-    let userPersona = '';
-    if (userId) {
-      const user = req.user;
-      userPersona = user.persona || '';
-    }
-
-    // Process conversational search with persona
-    const conversation = await processSearchConversation(query, conversationHistory, userPersona);
-
-    // If AI needs clarification, return question
-    if (conversation.needsClarification && conversation.question) {
+    // 1. Kiểm tra query có ý nghĩa không
+    const isMeaningful = await isMeaningfulQuery(query);
+    if (!isMeaningful) {
       return res.status(HTTP_STATUS.OK).json({
         success: true,
-        needsClarification: true,
-        question: conversation.question,
-        reason: conversation.reason,
-        conversationSummary: conversation.conversationSummary,
-        message: 'Cần thêm thông tin để tìm kiếm chính xác',
+        queryType: 'INVALID',
+        data: [],
+        message: 'Query không có ý nghĩa hoặc không liên quan đến sách',
         statusCode: HTTP_STATUS.OK
       });
     }
 
-    // AI confirmed we can search - use simplified query
-    const searchQuery = conversation.simplifiedQuery || query;
+    // 2. Lấy danh sách categories để AI phân tích
+    const categories = await Category.find({ isDisable: false }).select('_id name');
 
-    // Double-check with simplifyQuery (for meaningless check)
-    const simplifiedQuery = await simplifyQuery(searchQuery);
+    // 3. Phân tích query để xác định loại search và trích xuất filters
+    const analysis = await analyzeSearchQuery(query, categories);
+    const { queryType, searchQuery, filters } = analysis;
 
-    if(simplifiedQuery.isMeaningless) {
-      return sendSuccess(res, [], SUCCESS_MESSAGES.BOOK_RETRIEVED);
+    // Get user info for persona update (optional)
+    const userId = req.user?.id;
+    let books = [];
+    let actualQueryType = queryType; // Track actual search type used
+
+    // 4. Thực thi search theo loại
+    if (queryType === 'VECTOR_SEARCH') {
+      // === VECTOR SEARCH - Tìm kiếm trừu tượng ===
+      // Generate embedding từ query
+      const queryEmbedding = await generateEmbedding(searchQuery);
+
+      // Vector search
+      books = await Book.aggregate([
+        {
+          $vectorSearch: {
+            index: "default",
+            path: "embedding",
+            queryVector: queryEmbedding,
+            numCandidates: 15,
+            limit: 12,
+          },
+        },
+        {
+          $addFields: {
+            score: { $meta: "vectorSearchScore" },
+          },
+        },
+        {
+          $match: {
+            isDisable: false,
+            score: { $gte: 0.75 }, // threshold
+          },
+        },
+      ]);
+
+    } else {
+      // === KEYWORD SEARCH - Tìm kiếm từ khóa với filters ===
+      let searchFilters = { isDisable: false };
+
+      // Thêm text search nếu có
+      if (searchQuery && searchQuery.trim()) {
+        searchFilters.$text = { $search: searchQuery.trim() };
+      }
+
+      // Thêm category filter nếu có
+      if (filters.category) {
+        searchFilters.category = filters.category;
+      }
+
+      // Thêm price filter nếu có
+      if (filters.minPrice || filters.maxPrice) {
+        searchFilters.price = {};
+        if (filters.minPrice) searchFilters.price.$gte = Number(filters.minPrice);
+        if (filters.maxPrice) searchFilters.price.$lte = Number(filters.maxPrice);
+      }
+
+      // Thực hiện keyword search
+      books = await Book.find(searchFilters)
+        .populate("category", "name description isDisable")
+        .sort({ createdAt: -1 })
+        .limit(12)
+        .lean();
+
+      // Fallback to VECTOR_SEARCH if KEYWORD_SEARCH returns no results
+      if (books.length === 0) {
+        console.log('Keyword search returned no results, falling back to vector search...');
+        
+        // Generate embedding từ query gốc
+        const queryEmbedding = await generateEmbedding(searchQuery);
+
+        // Vector search
+        books = await Book.aggregate([
+          {
+            $vectorSearch: {
+              index: "default",
+              path: "embedding",
+              queryVector: queryEmbedding,
+              numCandidates: 15,
+              limit: 12,
+            },
+          },
+          {
+            $addFields: {
+              score: { $meta: "vectorSearchScore" },
+            },
+          },
+          {
+            $match: {
+              isDisable: false,
+              score: { $gte: 0.75 }, // threshold
+            },
+          },
+        ]);
+
+        // Update actual query type for response
+        actualQueryType = 'VECTOR_SEARCH_FALLBACK';
+      }
     }
 
-    // 1. Generate embedding from final query
-    const queryEmbedding = await generateEmbedding(simplifiedQuery.simplifiedQuery);
+    // 5. Populate category cho vector search results (vì aggregate không auto populate)
+    if ((queryType === 'VECTOR_SEARCH' || actualQueryType === 'VECTOR_SEARCH_FALLBACK') && books.length > 0) {
+      actualQueryType = 'VECTOR_SEARCH';
+      await Book.populate(books, {
+        path: 'category',
+        select: 'name description isDisable'
+      });
+    }
 
-    // 2. Vector search
-    const books = await Book.aggregate([
-      {
-        $vectorSearch: {
-          index: "default",
-          path: "embedding",
-          queryVector: queryEmbedding,
-          numCandidates: 10,
-          limit: 8,
-        },
-      },
-      {
-        $addFields: {
-          score: { $meta: "vectorSearchScore" },
-        },
-      },
-      {
-        $match: {
-          score: { $gte: 0.75 }, // threshold
-        },
-      },
-    ]);
-
-    // 3. Update user persona in background (non-blocking)
+    // 6. Update user persona in background (non-blocking)
     if (userId) {
       const user = req.user;
       const interactionContext = buildInteractionContext('search', {
-        query: simplifiedQuery.simplifiedQuery,
-        results: books.length,
-        conversationTurns: conversationHistory.length
+        query: searchQuery,
+        queryType: queryType,
+        results: books.length
       });
       
-      // Run persona update in background without awaiting
       updateUserPersona(userId, user.persona, interactionContext, 'search')
         .catch(err => console.error('Persona update failed:', err));
     }
 
-    // 4. Return search results
+    // 7. Return search results
     const responseData = BookDTO.toResponseList(books);
     return res.status(HTTP_STATUS.OK).json({
       success: true,
-      needsClarification: false,
+      queryType: actualQueryType,
+      searchQuery: searchQuery,
+      filters: queryType === 'KEYWORD_SEARCH' ? filters : null,
       data: responseData,
-      searchQuery: simplifiedQuery.simplifiedQuery,
-      conversationSummary: conversation.conversationSummary,
       message: SUCCESS_MESSAGES.BOOK_RETRIEVED,
       statusCode: HTTP_STATUS.OK
     });
 
   } catch (error) {
+    console.error('Search error:', error);
     return sendError(res, ERROR_MESSAGES.INTERNAL_ERROR, 500, {
       message: error.message,
     });

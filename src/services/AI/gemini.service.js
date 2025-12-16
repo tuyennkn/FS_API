@@ -152,12 +152,11 @@ export async function analyzeCategoryFromGenre(
   - Lấy category có điểm cao nhất.
   - Nếu điểm < 60 → xem là KHÔNG PHÙ HỢP → bạn phải tạo category mới.
   - Nếu điểm ≥ 60 → chọn category đó.
-
   QUAN TRỌNG: Chỉ trả về JSON hợp lệ theo định dạng sau, không thêm gì khác:
   {
     "isNew": boolean,
     "name": "Tên category hoặc category mới",
-    "description": "Mô tả ngắn về category, không phải mô tả sách"
+    "description": "Mô tả ngắn về category, không phải mô tả sách. Trống nếu isNew là false."
   }
   `;
 

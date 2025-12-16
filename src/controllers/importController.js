@@ -8,6 +8,68 @@ import { embeddingTextGenerator } from '../utils/algorithms.js';
 import { handleCategoryForBook } from '../services/categoryAnalysis.service.js';
 import Category from '~/models/Category.js';
 
+/**
+ * Retry wrapper cho embedding generation
+ * @param {Function} fn - Hàm cần retry
+ * @param {string} bookTitle - Tên sách (để log)
+ * @param {number} maxRetries - Số lần retry tối đa (default: 10)
+ * @returns {Promise} - Kết quả của hàm
+ */
+async function retryEmbeddingGeneration(fn, bookTitle, maxRetries = 10) {
+  let lastError;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`  [Embedding] Attempt ${attempt}/${maxRetries} for: "${bookTitle}"`);
+      const result = await fn();
+      console.log(`  ✓ Embedding generated successfully`);
+      return result;
+    } catch (error) {
+      lastError = error;
+      console.error(`  ✗ Embedding failed (attempt ${attempt}/${maxRetries}):`, error.message);
+      
+      if (attempt < maxRetries) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Max 10s
+        console.log(`  ⏳ Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw new Error(`Failed to generate embedding after ${maxRetries} attempts: ${lastError.message}`);
+}
+
+/**
+ * Retry wrapper cho AI category analysis
+ * @param {Function} fn - Hàm cần retry
+ * @param {string} bookTitle - Tên sách (để log)
+ * @param {number} maxRetries - Số lần retry tối đa (default: 10)
+ * @returns {Promise} - Kết quả của hàm
+ */
+async function retryCategoryAnalysis(fn, bookTitle, maxRetries = 10) {
+  let lastError;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`  [Category AI] Attempt ${attempt}/${maxRetries} for: "${bookTitle}"`);
+      const result = await fn();
+      console.log(`  ✓ Category analysis completed`);
+      return result;
+    } catch (error) {
+      lastError = error;
+      console.error(`  ✗ Category analysis failed (attempt ${attempt}/${maxRetries}):`, error.message);
+      
+      if (attempt < maxRetries) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Max 10s
+        console.log(`  ⏳ Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw new Error(`Failed to analyze category after ${maxRetries} attempts: ${lastError.message}`);
+}
+
 // Configure multer for CSV file upload
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -249,17 +311,29 @@ export const importBooksFromCSV = async (req, res) => {
 
           for (const bookData of batch) {
             try {
-              // Generate embedding for the book
+              console.log(`\nProcessing book: "${bookData.title}"`);
+              
+              // Generate embedding for the book with retry
               if (bookData.title && bookData.description) {
-                const embedding = await generateEmbedding(
-                  embeddingTextGenerator(bookData)
-                );
-                bookData.embedding = embedding;
+                try {
+                  const embedding = await retryEmbeddingGeneration(
+                    () => generateEmbedding(embeddingTextGenerator(bookData)),
+                    bookData.title,
+                    10 // Retry 10 lần
+                  );
+                  bookData.embedding = embedding;
+                } catch (embeddingError) {
+                  console.error(`❌ Critical: Failed to generate embedding for "${bookData.title}" after all retries`);
+                  errors.push(`Failed to generate embedding for: ${bookData.title} - ${embeddingError.message}`);
+                  // Skip this book if embedding is critical
+                  continue;
+                }
               }
 
               // Create the book
               const book = new Book(bookData);
               await book.save();
+              console.log(`✓ Book saved to database`);
 
               // Handle category assignment or create pending category
               if (bookData.genre && !bookData.category) {
@@ -270,28 +344,42 @@ export const importBooksFromCSV = async (req, res) => {
                   let matchedCategory = genreCategoryCache.get(genreKey);
                   
                   if (matchedCategory === undefined) {
-                    // Not in cache, call AI service with delay
-                    matchedCategory = await handleCategoryForBook({
-                      genre: bookData.genre,
-                      _id: book._id,
-                      title: book.title,
-                      author: book.author,
-                      image: book.image
-                    }, allCategories);
-                    
-                    // Cache the result (even if null)
-                    genreCategoryCache.set(genreKey, matchedCategory);
-                    
-                    // Add delay to avoid rate limiting (500ms between AI calls)
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    // Not in cache, call AI service with retry
+                    try {
+                      matchedCategory = await retryCategoryAnalysis(
+                        () => handleCategoryForBook({
+                          genre: bookData.genre,
+                          _id: book._id,
+                          title: book.title,
+                          author: book.author,
+                          image: book.image
+                        }, allCategories),
+                        bookData.title,
+                        10 // Retry 10 lần
+                      );
+                      
+                      // Cache the result (even if null)
+                      genreCategoryCache.set(genreKey, matchedCategory);
+                      
+                      // Add delay to avoid rate limiting (500ms between successful AI calls)
+                      await new Promise(resolve => setTimeout(resolve, 500));
+                    } catch (categoryError) {
+                      console.error(`❌ Critical: Failed to analyze category for "${bookData.title}" after all retries`);
+                      errors.push(`Failed to analyze category for: ${bookData.title} - ${categoryError.message}`);
+                      // Continue without category assignment
+                      matchedCategory = null;
+                      genreCategoryCache.set(genreKey, null);
+                    }
+                  } else {
+                    console.log(`  ℹ Using cached category result for genre: "${genreKey}"`);
                   }
 
                   if (matchedCategory) {
                     book.category = matchedCategory._id;
                     await book.save();
-                    console.log(`Auto-assigned category: ${matchedCategory.name} to book: ${book.title} (CSV import)`);
+                    console.log(`✓ Auto-assigned category: ${matchedCategory.name} (CSV import)`);
                   } else {
-                    console.log(`Created pending category for book: ${book.title} with genre: ${bookData.genre} (CSV import)`);
+                    console.log(`ℹ No category matched for genre: ${bookData.genre} (CSV import)`);
                   }
                 } catch (categoryError) {
                   console.error('Error handling category for book during CSV import:', categoryError);
@@ -300,6 +388,7 @@ export const importBooksFromCSV = async (req, res) => {
               }
 
               processedBooks.push(book);
+              console.log(`✓ Book "${bookData.title}" processed successfully\n`);
             } catch (bookError) {
               console.error(`Error processing book: ${bookData.title}`, bookError);
               errors.push(`Error processing book: ${bookData.title} - ${bookError.message}`);

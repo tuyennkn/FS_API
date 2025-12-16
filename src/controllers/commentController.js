@@ -10,6 +10,40 @@ import {
 } from '../utils/responseHelper.js'
 import { CommentDTO } from '../dto/index.js'
 import { SUCCESS_MESSAGES, ERROR_MESSAGES } from '../utils/constants.js'
+import { generateEmbedding } from '../services/AI/embedding.service.js'
+
+/**
+ * Generate embedding với retry logic
+ * @param {string} text - Text cần embedding
+ * @param {number} maxRetries - Số lần retry tối đa (default: 3)
+ * @returns {Promise<number[]>} - Vector embedding
+ */
+async function generateEmbeddingWithRetry(text, maxRetries = 3) {
+  let lastError;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Attempting to generate embedding (attempt ${attempt}/${maxRetries})...`);
+      const embedding = await generateEmbedding(text);
+      console.log('Embedding generated successfully');
+      return embedding;
+    } catch (error) {
+      lastError = error;
+      console.error(`Embedding generation failed (attempt ${attempt}/${maxRetries}):`, error.message);
+      
+      // Nếu chưa hết retry, đợi một chút trước khi thử lại
+      if (attempt < maxRetries) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Exponential backoff, max 5s
+        console.log(`Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  // Nếu hết retry vẫn lỗi, log warning nhưng không throw error
+  console.warn(`Failed to generate embedding after ${maxRetries} attempts:`, lastError.message);
+  return null; // Trả về null thay vì throw error
+}
 
 const createComment = async (req, res, next) => {
   try {
@@ -28,6 +62,14 @@ const createComment = async (req, res, next) => {
       comment: commentText,
       user_id: req.user._id
     })
+
+    // 3. Generate embedding cho comment (với retry 3 lần)
+    if (commentText && commentText.trim()) {
+      const embedding = await generateEmbeddingWithRetry(commentText, 3);
+      if (embedding) {
+        comment.embedding = embedding;
+      }
+    }
 
     await comment.save()
 
@@ -57,6 +99,14 @@ const updateComment = async (req, res) => {
     const diffMinutes = (now - comment.createdAt) / (1000 * 60)
     if (diffMinutes > 15) {
       return sendBadRequest(res, 'Bạn chỉ có thể sửa trong vòng 15 phút sau khi bình luận')
+    }
+
+    // Nếu comment text thay đổi, regenerate embedding
+    if (req.body.comment && req.body.comment !== comment.comment) {
+      const embedding = await generateEmbeddingWithRetry(req.body.comment, 3);
+      if (embedding) {
+        req.body.embedding = embedding;
+      }
     }
 
     const updatedComment = await Comment.findByIdAndUpdate(id, req.body, { new: true })
